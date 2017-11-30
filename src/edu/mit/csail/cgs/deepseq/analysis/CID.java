@@ -1235,13 +1235,13 @@ public class CID {
 		// only consider PETs here, but not single-end-mapped reads, because the goal is to partition PETs
 		// compared with reads, pets1d do NOT include cross-chrom reads, single-ended reads, and self-ligation reads.
 		// it is used for 1d segmentation and MICC anchor region quantification.
-		ArrayList<Point> pets1d = new ArrayList<Point>();
-		for (ReadPair r : low){			// low and high holds the same data, just sorted differently 
-			pets1d.add(r.r1);
-			pets1d.add(r.r2);
-		}
-		pets1d.trimToSize();
-		Collections.sort(pets1d);
+//		ArrayList<Point> pets1d = new ArrayList<Point>();
+//		for (ReadPair r : low){			// low and high holds the same data, just sorted differently 
+//			pets1d.add(r.r1);
+//			pets1d.add(r.r2);
+//		}
+//		pets1d.trimToSize();
+//		Collections.sort(pets1d);
 
 		// TODO: use 1D cross correlation to determine the distance to shift
 		ArrayList<Region> rs0 = new ArrayList<Region>();
@@ -1249,20 +1249,20 @@ public class CID {
 		// cut the pooled reads into independent regions
 		int start0 = 0;
 		int minCount = 3;
-		for (int i = 1; i < pets1d.size(); i++) {
-			Point p0 = pets1d.get(i-1);
-			Point p1 = pets1d.get(i);
+		for (int i = 1; i < lowEnds.size(); i++) {
+			Point p0 = lowEnds.get(i-1);
+			Point p1 = lowEnds.get(i);
 			// not same chorm, or a large enough gap to cut
 			if ((!p0.getChrom().equals(p1.getChrom())) || p1.getLocation() - p0.getLocation() > read_1d_merge_dist) { 
 				// only select region with read count larger than minimum count
 				int count = i - start0;
 				if (count >= minCount) {
-					Region r = new Region(genome, p0.getChrom(), pets1d.get(start0).getLocation(),
-							pets1d.get(i - 1).getLocation());
+					Region r = new Region(genome, p0.getChrom(), lowEnds.get(start0).getLocation(),
+							lowEnds.get(i - 1).getLocation());
 					rs0.add(r);
 					ArrayList<Point> ps = new ArrayList<Point>();
 					for (int j = start0; j < i; j++)
-						ps.add(pets1d.get(j));
+						ps.add(lowEnds.get(j));
 //					int maxCount = 0;
 //					int maxIdx = -1;
 //					for (int j = 0; j < ps.size(); j++) {
@@ -1279,14 +1279,14 @@ public class CID {
 			}
 		}
 		// the last region
-		int count = pets1d.size() - start0;
+		int count = lowEnds.size() - start0;
 		if (count >= minCount) {
-			Region r = new Region(genome, pets1d.get(start0).getChrom(), pets1d.get(start0).getLocation(),
-					pets1d.get(pets1d.size() - 1).getLocation());
+			Region r = new Region(genome, lowEnds.get(start0).getChrom(), lowEnds.get(start0).getLocation(),
+					lowEnds.get(lowEnds.size() - 1).getLocation());
 			rs0.add(r);
 			ArrayList<Point> ps = new ArrayList<Point>();
-			for (int j = start0; j < pets1d.size(); j++)
-				ps.add(pets1d.get(j));
+			for (int j = start0; j < lowEnds.size(); j++)
+				ps.add(lowEnds.get(j));
 //			int maxCount = 0;
 //			int maxIdx = -1;
 //			for (int j = 0; j < ps.size(); j++) {
@@ -2188,25 +2188,6 @@ public class CID {
 			}
 		}
 		CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
-//		for (Interaction it : interactions) {
-//			// Note: the BED coordinate is centered on the anchor Point, 
-//			// but the read counts are from the anchor region + padding
-//			Region leftLocal = it.leftRegion.expand(dc, dc);	//TODO: what is the best bp to expand
-//			Region rightLocal = it.rightRegion.expand(dc, dc);
-//			if (isDev)
-//				sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\n", 
-//						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
-//						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
-//					CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
-//					CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size(), it.d_c));
-//			else
-//				sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", 
-//						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
-//						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
-//						CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
-//						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
-//		}
-
 	}
 
 	/**
