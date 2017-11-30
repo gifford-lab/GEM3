@@ -991,7 +991,7 @@ public class CID {
 			// r1 and r2 should be on the same chromosome for PETs
 			if (!r1.getChrom().equals(r2.getChrom())) 
 				continue;
-			// TODO: should we them as single-end reads even if they are on different chromosomes???
+			// TODO: should we treat them as single-end reads even if they are on different chromosomes???
 			reads.add(r1);
 			reads.add(r2);
 			
@@ -1171,6 +1171,11 @@ public class CID {
 			Collections.sort(reads);	
 		}	// get subset of data
 		
+		if (low.isEmpty()){
+			System.err.println("\nNo read pair was loaded. Exit here!\n");
+			System.exit(-1);
+		}
+		
 //		/** 
 //		 * compute self-ligation fraction for minus-plus PETs
 //		 */
@@ -1231,7 +1236,7 @@ public class CID {
 		// compared with reads, pets1d do NOT include cross-chrom reads, single-ended reads, and self-ligation reads.
 		// it is used for 1d segmentation and MICC anchor region quantification.
 		ArrayList<Point> pets1d = new ArrayList<Point>();
-		for (ReadPair r : low){			// low and high holds the same data, just sorted differently
+		for (ReadPair r : low){			// low and high holds the same data, just sorted differently 
 			pets1d.add(r.r1);
 			pets1d.add(r.r2);
 		}
@@ -1295,7 +1300,7 @@ public class CID {
 //			summits.add(reads.get(maxIdx));
 		}
 		
-		System.out.println("\nMerged all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
+		System.out.println("\nSegment all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
 		
 		/**************************
@@ -1321,6 +1326,19 @@ public class CID {
 		allTSS.trimToSize();
 		Collections.sort(allTSS);
 
+		
+		if (flags.contains("print_cluster")){
+			StringBuilder sbDensityDetails = new StringBuilder();
+			ReadPairCluster rpc = new ReadPairCluster();
+			for (ReadPair rp: high)
+				rpc.addReadPair(rp);
+			rpc.update(false);
+			sbDensityDetails.append(String.format("# %s:%d-%d\n", rpc.leftRegion.getChrom(), rpc.r1min, rpc.r2max));
+			densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sbDensityDetails);
+			CommonUtils.writeFile(String.format("%s.cluster.density.txt", outName), sbDensityDetails.toString());
+			System.out.println(String.format("\nClustering results have been written to %s.cluster.density.txt", outName));
+			System.exit(0);
+		}
 		
 		/***********************************************************
 		 * find dense PET cluster for each 1D clustered region
@@ -1406,7 +1424,13 @@ public class CID {
 				// Density clustering, start with largest possible span, i.e. the whole width
 				ArrayList<ReadPairCluster> tmp = new ArrayList<ReadPairCluster>();
 				for (ReadPairCluster rpc: rpcs){
-					tmp.addAll(densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sbDensityDetails));
+					int span = rpc.getLoopRegionWidth();
+					int dc = this.span2mergingDist(span);
+					// TODO: remove singleton using dc (if it is not the max)
+					if (dc<this.max_cluster_merge_dist){
+						
+					}
+					tmp.addAll(densityClustering(rpc, span2mergingDist(span), sbDensityDetails));
 				}
 				rpcs = tmp;
 				if (rpcs.isEmpty())
@@ -1500,8 +1524,8 @@ public class CID {
 						if (cc.r1width>dc && cc.r2width>dc)	
 							continue;
 						if (flags.contains("strict")){		// more stringent calls
-							int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(this.dc, this.dc)).size();
-							int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(this.dc, this.dc)).size();
+							int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(dc, dc)).size();
+							int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(dc, dc)).size();
 							if (l==2 || r==2 || (l<=4 && r<=4))
 								continue;
 						}
@@ -1630,7 +1654,7 @@ public class CID {
 		/******************************
 		 * Annotate and report
 		 *******************************/
-		annotateInteractionCallsAndOutput(interactions, pets1d, low, tic0);
+		annotateInteractionCallsAndOutput(interactions, lowEnds, highEnds, low, tic0);
 		
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
@@ -1895,8 +1919,8 @@ public class CID {
 	/**
 	 * Annotate after CID interaction calling and then print output files
 	 */
-	private void annotateInteractionCallsAndOutput(ArrayList<Interaction> interactions, ArrayList<Point> reads, 
-			ArrayList<ReadPair> pet1s, long tic0){
+	private void annotateInteractionCallsAndOutput(ArrayList<Interaction> interactions, ArrayList<Point> lowEnds, ArrayList<Point> highEnds, 
+			ArrayList<ReadPair> singleton_pets, long tic0){
 
 		// load TF sites
 		String tfs_file = Args.parseString(args, "tf_sites", null);
@@ -2124,7 +2148,7 @@ public class CID {
 		 */
 		// HERE we need to also include PET1 for MICC and ChiaSig analysis
 		if (micc_min_pet==1){
-			for (ReadPair rp : pet1s) {
+			for (ReadPair rp : singleton_pets) {
 				Interaction it = new Interaction();
 				interactions.add(it);
 				it.leftPoint = rp.r1;
@@ -2135,8 +2159,8 @@ public class CID {
 				it.count2 = 1;
 				it.adjustedCount = 1;
 			}
-			pet1s.clear();
-			pet1s = null;
+			singleton_pets.clear();
+			singleton_pets = null;
 		}
 
 		sb = new StringBuilder();
@@ -2149,14 +2173,14 @@ public class CID {
 				sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\n", 
 						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
 						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
-					CommonUtils.getPointsIdxWithinWindow(reads, leftLocal).size(), 
-					CommonUtils.getPointsIdxWithinWindow(reads, rightLocal).size(), it.d_c));
+						CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
+						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size(), it.d_c));
 			else
 				sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", 
 						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
 						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
-						CommonUtils.getPointsIdxWithinWindow(reads, leftLocal).size(), 
-						CommonUtils.getPointsIdxWithinWindow(reads, rightLocal).size()));
+						CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
+						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
 			
 			if (sb.length()>10000000){
 				CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
@@ -2164,6 +2188,25 @@ public class CID {
 			}
 		}
 		CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
+//		for (Interaction it : interactions) {
+//			// Note: the BED coordinate is centered on the anchor Point, 
+//			// but the read counts are from the anchor region + padding
+//			Region leftLocal = it.leftRegion.expand(dc, dc);	//TODO: what is the best bp to expand
+//			Region rightLocal = it.rightRegion.expand(dc, dc);
+//			if (isDev)
+//				sb.append(String.format("%s\t%s\t%d\t%d\t%d\t%d\n", 
+//						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
+//						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
+//					CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
+//					CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size(), it.d_c));
+//			else
+//				sb.append(String.format("%s\t%s\t%d\t%d\t%d\n", 
+//						it.leftPoint.expand(leftLocal.getWidth()/2).toBED(), 
+//						it.rightPoint.expand(rightLocal.getWidth()/2).toBED(), it.adjustedCount,
+//						CommonUtils.getPointsIdxWithinWindow(lowEnds, leftLocal).size(), 
+//						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
+//		}
+
 	}
 
 	/**
