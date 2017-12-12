@@ -134,6 +134,7 @@ public class MotifScan {
 	        
 			ArrayList<KMAC> kmacs = new ArrayList<KMAC>();
 			ArrayList<String> knames = new ArrayList<String>();
+			int numMotif = 0;
 			if (ksm_string.contains(",")){	// it is a comma-separated string with name,path format
 				String f[]=ksm_string.split(",");
 				KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
@@ -148,13 +149,14 @@ public class MotifScan {
 			    	System.exit(0);
 			    }
 				instances = scan_multiKSMs(seqs, kmacs, knames);
+				numMotif = kmacs.size();
 			}
 			else{		// it is KSM list file path
 				ArrayList<String> lines = CommonUtils.readTextFile(ksm_string);
 				if (lines.size()>500 && !toMakeMatrix){
 					// scan each KSM one by one, avoid loading all KSMs (using too much memory)
 					instances = new ArrayList<MotifInstance>();
-					int n = 0;
+					numMotif = 0;
 					for (String l:lines){
 						if (l.startsWith("#"))
 							continue;
@@ -165,7 +167,8 @@ public class MotifScan {
 							System.err.println("Error in loading "+f[1]+", skipping it ...");
 							continue;
 						}
-						instances.addAll(scan_singleKSM(seqs, kmac, kname, n));
+						instances.addAll(scan_singleKSM(seqs, kmac, kname, numMotif));
+						numMotif++;
 					}
 				}
 				else{ 
@@ -186,10 +189,11 @@ public class MotifScan {
 				    	System.exit(0);
 				    }
 					instances = scan_multiKSMs(seqs, kmacs, knames);
+					numMotif = kmacs.size();
 				}
 			}
 			
-			header = "# numSequence:"+seqs.length+"\n# numMotif:"+kmacs.size();
+			header = "# numSequence:"+seqs.length+"\n# numMotif:"+numMotif;
 		}
 		
 		// search for exact k-mer match
