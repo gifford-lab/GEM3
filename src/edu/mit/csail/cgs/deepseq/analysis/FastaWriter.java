@@ -27,23 +27,7 @@ public class FastaWriter{
   public static void main(String[] args){
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
-    Genome genome=null;
-    
-    try {
-      Pair<Organism, Genome> pair = Args.parseGenome(args);
-      if(pair==null){
-        if(ap.hasKey("g")){
-        	String gname = ap.getKeyValue("g").replaceFirst(".info", "");
-          genome = new Genome(gname, new File(ap.getKeyValue("g")), true);
-        }else{
-              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-        }
-      }else{
-        genome = pair.cdr();
-      }  
-    } catch (NotFoundException e) {
-      e.printStackTrace();
-    }
+    Genome genome = CommonUtils.parseGenome(args);
     
 //    boolean wantHMS = flags.contains("hms");
 //    boolean wantChIPMunk = flags.contains("chipmunk");

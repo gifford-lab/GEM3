@@ -122,7 +122,7 @@ Listener<EventObject>, PainterContainer, MouseListener {
 	public RegionPanel(WarpOptions opts) {
 		super();
 		if (opts.genomeString!=null){
-			genome = new Genome("Genome", new File(opts.genomeString), true);
+			genome = new Genome("Genome", new File(opts.genomeString));
 		}
 		else{
 			Organism organism = null;

@@ -74,21 +74,7 @@ public class RegionAnnotator {
 	
 	public RegionAnnotator(String[] args){
 		this.args = args;		
-	    try {
-	    	Pair<Organism, Genome> pair = Args.parseGenome(args);
-	        if(pair != null) {
-	            genome = pair.cdr();
-	        } else {
-	            String genomeString = Args.parseString(args,"g",null);		// text file with chrom lengths
-	            if(genomeString != null){
-	                genome = new Genome("Genome", new File(genomeString), true);
-	            } else{
-	                genome=null;
-	            }
-	        }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
+		genome = CommonUtils.parseGenome(args);
 		outPrefix = Args.parseString(args, "out", outPrefix);
 	}
 	

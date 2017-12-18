@@ -115,7 +115,7 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
     }
     
     public Genome(String tempName, File chrLengths) {
-    	species = "FakeOrganism";
+    	species = "FileOrganism";
     	version = tempName;
     	speciesid = dbid = -1;
     	cxn = null;
@@ -127,17 +127,21 @@ public class Genome implements edu.mit.csail.cgs.utils.Closeable {
 		try {
 			reader = new BufferedReader(new FileReader(chrLengths));
 		    String line;
-	        int id=0;
+	        int id=-1;
 	        while ((line = reader.readLine()) != null) {
 	            line = line.trim();
 	            String[] words = line.split("\\s+");
 	            if(words.length>=2){
-	            	String chr = words[0].replaceFirst("^chromosome", "");
-	            	chr = chr.replaceFirst("^chrom", "");
-	            	chr = chr.replaceFirst("^chr", "");
-	            	ChromosomeInfo info = new ChromosomeInfo(-(id+1), Integer.parseInt(words[1]), chr);
-	            	chroms.put(info.getName(), info);
-	            	revchroms.put(info.dbid, info);
+		            	String chr = words[0].replaceFirst("^chromosome", "");
+		            	chr = chr.replaceFirst("^chrom", "");
+		            	chr = chr.replaceFirst("^chr", "");
+		            	if(words.length==3)
+		            		id=Integer.parseInt(words[2]);
+		            	else
+		            		id++;
+		            	ChromosomeInfo info = new ChromosomeInfo(id, Integer.parseInt(words[1]), chr);
+		            	chroms.put(info.getName(), info);
+		            	revchroms.put(info.dbid, info);
 	            }
 	    	}
 		} catch (FileNotFoundException e) {

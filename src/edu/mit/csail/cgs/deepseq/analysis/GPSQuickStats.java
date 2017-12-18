@@ -37,22 +37,8 @@ public class GPSQuickStats{
     this.args = args;
     ArgParser ap = new ArgParser(args);
     
-    try {
-      Pair<Organism, Genome> pair = Args.parseGenome(args);
-      if(pair==null){
-        //Make fake genome... chr lengths provided???
-        if(ap.hasKey("g")){
-          genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
-            }else{
-              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-            }
-      }else{
-        genome = pair.cdr();
-        org = pair.car();
-      }  
-    } catch (NotFoundException e) {
-      e.printStackTrace();
-    }
+    genome = CommonUtils.parseGenome(args);
+    
 	// load motif
     String motifString = Args.parseString(args, "motif", null);
     if (motifString!=null){

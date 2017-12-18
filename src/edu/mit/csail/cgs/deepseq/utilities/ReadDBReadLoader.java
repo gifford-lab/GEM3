@@ -316,6 +316,19 @@ public class ReadDBReadLoader extends ReadLoader{
 		StringBuilder sb = new StringBuilder();
 		try {
 			for(ChipSeqAlignment alignment : aligns) {
+//				for (int i=28220; i<=28241; i++) {
+//					List<SingleHit> hs = client.getSingleHits(Integer.toString(alignment.getDBID()),
+//							i,
+//							0,
+//							195471971,
+//							null,
+//							strand == '+');
+//					for (int j=0; j<10;j++) {
+//						SingleHit h = hs.get(j);
+//						System.out.println(String.format("chr%d %d", i, h.pos));
+//					}
+//					System.out.println();
+//				}
 				for (SingleHit h : client.getSingleHits(Integer.toString(alignment.getDBID()),
 						r.getGenome().getChromID(r.getChrom()),
 						r.getStart(),

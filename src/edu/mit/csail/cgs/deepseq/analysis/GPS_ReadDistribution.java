@@ -79,28 +79,7 @@ public class GPS_ReadDistribution {
 		isMirrorSymmetry = flags.contains("mirrow");
 		if (isMirrorSymmetry)
 			System.out.println("Running MirrorSymmetry mode ... ");
-		try {
-			Pair<Organism, Genome> pair = Args.parseGenome(args);
-			if(pair==null){
-				//Make fake genome... chr lengths provided???
-				if(ap.hasKey("g")){
-					genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
-	        	}else{
-	        		System.err.println("No genome information provided."); 
-	        		System.exit(1);
-	        	}
-			}else{
-				org = pair.car();
-				genome = pair.cdr();
-			}
-		} catch (NotFoundException e) {
-			e.printStackTrace();
-		}
-		
-//		Map<String, Integer> map = genome.getChromLengthMap();
-//		for (String chr:map.keySet()){
-//			System.out.println(chr+"\t"+map.get(chr));
-//		}
+		genome = CommonUtils.parseGenome(args);
 		
 		// parameter for building empirical distribution
 		String chipSeqFile = Args.parseString(args, "chipseq", null);

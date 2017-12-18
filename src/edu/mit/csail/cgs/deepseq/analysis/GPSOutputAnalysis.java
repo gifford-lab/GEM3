@@ -53,19 +53,13 @@ public class GPSOutputAnalysis {
   private double motifThreshold;
   private int extend;				// number of bases to extend from motif hit sequence
   
-  private boolean useWeight;
-  
   private int[]motif_offsets;
   private double[]motif_scores;
   
   private List<GPSPeak> gpsPeaks;
   private String outputFileName;
   
-  // build empirical distribution
-  private String chipSeqExpt = null;
-  private String chipSeqVersion = null;
-  private boolean useMotif = true;
-  
+   
   
   /**
    * @param args
@@ -74,24 +68,8 @@ public class GPSOutputAnalysis {
     ArgParser ap = new ArgParser(args);
     Set<String> flags = Args.parseFlags(args);
     Organism org=null;
-    Genome genome=null;
+    Genome genome = CommonUtils.parseGenome(args);
     
-    try {
-      Pair<Organism, Genome> pair = Args.parseGenome(args);
-      if(pair==null){
-        //Make fake genome... chr lengths provided???
-        if(ap.hasKey("g")){
-          genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
-            }else{
-              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-            }
-      }else{
-        genome = pair.cdr();
-        org = pair.car();
-      }  
-    } catch (NotFoundException e) {
-      e.printStackTrace();
-    }
     // kmer motif 
     boolean useWeight = flags.contains("use_weight");
     
@@ -145,7 +123,6 @@ public class GPSOutputAnalysis {
 	  outputFileName = outputFile;
 	  motif_window = motif_win;
 	  this.extend = extend;
-	  this.useWeight = useWeight;
   }
   
   

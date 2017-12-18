@@ -80,21 +80,7 @@ public class MethodComparison {
 		this.args = args;
 		ArgParser ap = new ArgParser(args);
 		Set<String> flags = Args.parseFlags(args);		
-	    try {
-	      Pair<Organism, Genome> pair = Args.parseGenome(args);
-	      if(pair==null){
-	        //Make fake genome... chr lengths provided???
-	        if(ap.hasKey("g")){
-	          genome = new Genome("Genome", new File(ap.getKeyValue("g")), true);
-	            }else{
-	              System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs.");;System.exit(1);
-	            }
-	      }else{
-	        genome = pair.cdr();
-	      }
-	    } catch (NotFoundException e) {
-	      e.printStackTrace();
-	    }
+		genome = CommonUtils.parseGenome(args);
 	    	    
 		// some parameters
 		windowSize = Args.parseInteger(args, "windowSize", 50);
