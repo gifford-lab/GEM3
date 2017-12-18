@@ -852,19 +852,19 @@ public class KMAC {
 
 			// align sequences by KSM
 			HashMap<Integer, KmerGroup> seq2kg = alignByKSM(seqList, cluster.alignedKmers, cluster);	// get seq2kg map for building KSM logo
-	    	int leftmost = Integer.MAX_VALUE;
-	    	int total_aligned_seqs = 0;
-	    	for (Sequence s : seqList){
+		    	int leftmost = Integer.MAX_VALUE;
+		    	int total_aligned_seqs = 0;
+		    	for (Sequence s : seqList){
 				if (s.pos==UNALIGNED)
 					continue;
 				if (s.pos < leftmost )
 					leftmost = s.pos;		
 				total_aligned_seqs++;
 			}
-	    	cluster.total_aligned_seqs = total_aligned_seqs;
-	    	double[] bs = new double[total_aligned_seqs];
-	    	int count = 0;
-	    	int midPos=seqList.get(0).seq.length()/2;		// assume all the seqs are of the same length
+		    	cluster.total_aligned_seqs = total_aligned_seqs;
+		    	double[] bs = new double[total_aligned_seqs];
+		    	int count = 0;
+		    	int midPos=seqList.get(0).seq.length()/2;		// assume all the seqs are of the same length
 			StringBuilder sb = new StringBuilder();
 			for (Sequence s : seqList){
 				if (s.pos==UNALIGNED)
@@ -899,14 +899,12 @@ public class KMAC {
 			seqSortList.trimToSize();
 			allSeqList.trimToSize();
 			
-//			if (i==10)
-//				System.out.println("m"+i);
-
+			// iteratively find strongest k-mer, align sequences, remove aligned seqs and repeat
 			int totalHitCount = 0;
 			int sortId = 0;
-			ArrayList<Kmer> bestKmers = new ArrayList<Kmer>();
 			ArrayList<Integer> kmHitCounts = new ArrayList<Integer>();
 			while(totalHitCount<seqSortList.size()){
+				// find the most significant k-mer in the remaining sequences
 				int bestHit=0;
 				Kmer bestKm = null;
 				for (Kmer km:km2seqs.keySet()){
@@ -918,13 +916,13 @@ public class KMAC {
 				totalHitCount += bestHit;
 				if (totalHitCount>= seqSortList.size())
 					break;
-				bestKmers.add(bestKm);
 				kmHitCounts.add(bestHit);
 				ArrayList<Sequence> seqs = km2seqs.get(bestKm);
 				km2seqs.remove(bestKm);
 				for (Sequence s:seqs)
 					if (allSeqList.get(s.id).kmerSortId > sortId)
 						allSeqList.get(s.id).kmerSortId = sortId;
+				// remove all sequences that has been aligned
 				for (Kmer km:km2seqs.keySet())
 					km2seqs.get(km).removeAll(seqs);
 //				System.out.println((bestKm.isSeedOrientation?bestKm.kmerString:bestKm.kmerRC) +"\t"+bestHit+"\t"+sortIdSetCount);
@@ -933,7 +931,7 @@ public class KMAC {
 			Collections.sort(seqSortList);
 
 			int pictHeight = 1200;		// KSM logo image height
-			int minCount = seqSortList.size()/pictHeight*15;
+			int minCount = seqSortList.size()/pictHeight*15;		// min k-mer seqHit that corresponds to 15 pixel height
 			int lastCountIdx = kmHitCounts.size();
 			int accumCount = 0;
 			for (int ik = 0; ik<kmHitCounts.size(); ik++){
@@ -986,12 +984,12 @@ public class KMAC {
 					for (char base:LETTERS)			// 0 count can cause log(0), set pseudo-count 0.375 to every pos, every base
 						pfm[p][base] = 0.375f; 		//http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2490743/
 				} 
-		    	for (int is=currentSeqId;is<currentSeqId+kmHitCounts.get(ik);is++){
-					for (int p=0;p<pfm.length;p++){
-		    			char base = ss[is].charAt(p);
-		    			pfm[p][base] += 1;
-		    		}
-		    	}
+			    	for (int is=currentSeqId;is<currentSeqId+kmHitCounts.get(ik);is++){
+						for (int p=0;p<pfm.length;p++){
+			    			char base = ss[is].charAt(p);
+			    			pfm[p][base] += 1;
+			    		}
+			    	}
 				currentSeqId += kmHitCounts.get(ik);
 
 				WeightMatrix wm = new WeightMatrix(pfm);

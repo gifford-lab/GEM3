@@ -28,22 +28,7 @@ public class BEDFileWriter{
 	
 	BEDFileWriter(String[] args){
 		ArgParser ap = new ArgParser(args);
-		
-		try {
-			Pair<Organism, Genome> pair = Args.parseGenome(args);
-			if(pair==null){
-				//Make fake genome... chr lengths provided???
-				if(ap.hasKey("geninfo")){
-					gen = new Genome("Genome", new File(ap.getKeyValue("geninfo")));
-	        	}else{
-	        		System.err.println("No genome provided; provide a Gifford lab DB genome name or a file containing chromosome name/length pairs."); printError();System.exit(1);
-	        	}
-			}else{
-				gen = pair.cdr();
-			}
-		} catch (NotFoundException e) {
-			e.printStackTrace();
-		}
+		gen = CommonUtils.parseGenome(args);
 		fraction = Args.parseDouble(args,"fraction",fraction);
 		chr = Args.parseString(args, "chr", null);
         //Experiments : Load each condition expt:ctrl Pair

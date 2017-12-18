@@ -687,7 +687,7 @@ public class CommonUtils {
 			for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
 				weight+=seq_weights[i];
 	 		}
-			return (int)weight;
+			return (int) Math.round(weight);
 		}
 		else
 			return bitset.cardinality();
@@ -1124,12 +1124,12 @@ public class CommonUtils {
         g2.fillRect(0,0,pictWidth, pictHeight);
         int totalCount = 0;
         for (int c:counts)
-        	totalCount += c;
+        		totalCount += c;
         int topCoord = 0;
         for (int i=0;i<wms.size();i++){
-        	int h = counts.get(i)*pictHeight/totalCount;
-        	wmp.paint(wms.get(i), g2, 0, topCoord, pictWidth, topCoord+h);
-        	topCoord += h;
+	        	int h = counts.get(i)*pictHeight/totalCount;
+	        	wmp.paint(wms.get(i), g2, 0, topCoord, pictWidth, topCoord+h);
+	        	topCoord += h;
         }
         try {
             ImageIO.write(im,"png",f);
