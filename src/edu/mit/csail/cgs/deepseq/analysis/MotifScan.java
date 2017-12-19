@@ -32,7 +32,6 @@ public class MotifScan {
 			case 1: findMotifInstances(args); break;
 			case 9: scanWholeGenome(args, CommonUtils.parseGenome(args)); break;
 		}
-		
 	}
 	
 	/** TODO
@@ -47,6 +46,7 @@ public class MotifScan {
 	    boolean toMakeMatrix = flags.contains("matrix");		// make seq-motif feature matrix
 
 		String fasta = Args.parseString(args, "fasta", null);
+		// if output prefix is not provided, use the path and prefix of the fasta files.
 	    String out = Args.parseString(args, "out", fasta.replace(".fasta", "").replace(".fa", ""));
 
 	    ArrayList<String> texts = CommonUtils.loadFasta(fasta.trim());
@@ -229,70 +229,70 @@ public class MotifScan {
 		StringBuilder sb = new StringBuilder();
 		Genome g = CommonUtils.parseGenome(args);
 	    for (int i=0;i<instances.size();i++){
-	    	MotifInstance mi = instances.get(i);
-	    	String f[] = names[mi.seqID].split(" ");
-	    	String regionString = null;
-	    	if (f.length>1)
-	    		regionString = f[1];
-	    	else
-	    		regionString = names[mi.seqID];
-	    	
-	    	String coor_string = null;
-	    	Region region = Region.fromString(g, regionString);
-	    	if (region!=null){
-		    	Point startPoint = region.startPoint();
-		    	int instanceLength = mi.matchSeq.length();
-		    	int pos = mi.position + instanceLength/2;		// relative position from the left coord, adjust to motif midpoint
-		    	if (mi.strand=='-')
-		    		pos = mi.position + (instanceLength-1) - instanceLength/2;
-		    	coor_string = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand).toString();
-	    	}
-	    	else
-	    		coor_string = "N.A.";
-	    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t")
-	    	.append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
-	    	.append(mi.position).append("\t").append(coor_string).append("\t")
-	    	.append(mi.strand).append("\t").append(String.format("%.2f", mi.score));
-	    	if (toAddFasta){
-	    		sb.append("\t").append(seqs[mi.seqID]);
-	    	}
-	    	sb.append("\n");
-	    	if (sb.length()>1e7){	// write sb in smaller trunks
-		    	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());
-		    	sb = new StringBuilder();
-	    	}	    	
-	    }	    
-    	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());	// write out the remaining texts
+		    	MotifInstance mi = instances.get(i);
+		    	String f[] = names[mi.seqID].split(" ");
+		    	String regionString = null;
+		    	if (f.length>1)
+		    		regionString = f[1];
+		    	else
+		    		regionString = names[mi.seqID];
+		    	
+		    	String coor_string = null;
+		    	Region region = Region.fromString(g, regionString);
+		    	if (region!=null){
+			    	Point startPoint = region.startPoint();
+			    	int instanceLength = mi.matchSeq.length();
+			    	int pos = mi.position + instanceLength/2;		// relative position from the left coord, adjust to motif midpoint
+			    	if (mi.strand=='-')
+			    		pos = mi.position + (instanceLength-1) - instanceLength/2;
+			    	coor_string = new StrandedPoint(g, startPoint.getChrom(), startPoint.getLocation()+pos, mi.strand).toString();
+		    	}
+		    	else
+		    		coor_string = "N.A.";
+		    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t")
+		    	.append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
+		    	.append(mi.position).append("\t").append(coor_string).append("\t")
+		    	.append(mi.strand).append("\t").append(String.format("%.2f", mi.score));
+		    	if (toAddFasta){
+		    		sb.append("\t").append(seqs[mi.seqID]);
+		    	}
+		    	sb.append("\n");
+		    	if (sb.length()>1e7){	// write sb in smaller trunks
+			    	CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());
+			    	sb = new StringBuilder();
+		    	}	    	
+		}	    
+	    CommonUtils.appendFile(out.concat(".motifInstances.txt"), sb.toString());	// write out the remaining texts
 	    
 	    // skip the matched sequences
 	    if (flags.contains("skip")){
-	    	HashSet<Integer> seqID_matched = new HashSet<Integer>();
-	    	for (int i=0;i<instances.size();i++){
-	    		seqID_matched.add(instances.get(i).seqID);
-	    	}
-	    	StringBuilder sb_skip = new StringBuilder();
-	    	for (int s=0;s<seqs.length;s++){
-	    		if (!seqID_matched.contains(s))
-	    			sb_skip.append(">"+names[s]+"\n"+seqs[s]+"\n");
-	    	}
-	    	CommonUtils.writeFile(out.concat(".motifHitSkipped.fasta"), sb_skip.toString());
+		    	HashSet<Integer> seqID_matched = new HashSet<Integer>();
+		    	for (int i=0;i<instances.size();i++){
+		    		seqID_matched.add(instances.get(i).seqID);
+		    	}
+		    	StringBuilder sb_skip = new StringBuilder();
+		    	for (int s=0;s<seqs.length;s++){
+		    		if (!seqID_matched.contains(s))
+		    			sb_skip.append(">"+names[s]+"\n"+seqs[s]+"\n");
+		    	}
+		    	CommonUtils.writeFile(out.concat(".motifHitSkipped.fasta"), sb_skip.toString());
 	    }
 	    
 	    // mask the matched instances
 	    if (flags.contains("mask")){
-	    	StringBuilder sb_mask = new StringBuilder();
-	    	for (int i=0;i<instances.size();i++){
-	    		MotifInstance mi = instances.get(i);
-	    		StringBuilder masked = new StringBuilder(seqs[mi.seqID]);
-	    		int endPos = mi.position + motifLengths.get(mi.motifID);		// exclusive end
-	    		for (int idx=mi.position;idx<endPos;idx++)
-	    			masked.setCharAt(idx, 'N');
-	    		seqs[mi.seqID] = masked.toString();
-	    	}
-	    	for (int s=0;s<seqs.length;s++){
-	    		sb_mask.append(">"+names[s]+"\n"+seqs[s]+"\n");
-	    	}
-	    	CommonUtils.writeFile(out.concat(".motifHitMasked.fasta"), sb_mask.toString());
+		    	StringBuilder sb_mask = new StringBuilder();
+		    	for (int i=0;i<instances.size();i++){
+		    		MotifInstance mi = instances.get(i);
+		    		StringBuilder masked = new StringBuilder(seqs[mi.seqID]);
+		    		int endPos = mi.position + motifLengths.get(mi.motifID);		// exclusive end
+		    		for (int idx=mi.position;idx<endPos;idx++)
+		    			masked.setCharAt(idx, 'N');
+		    		seqs[mi.seqID] = masked.toString();
+		    	}
+		    	for (int s=0;s<seqs.length;s++){
+		    		sb_mask.append(">"+names[s]+"\n"+seqs[s]+"\n");
+		    	}
+		    	CommonUtils.writeFile(out.concat(".motifHitMasked.fasta"), sb_mask.toString());
 	    }
 	}
 	
@@ -313,37 +313,37 @@ public class MotifScan {
 	    for (int m=0; m<kmacs.size(); m++){
 	    	System.out.println("  ... "+knames.get(m)+" ...");
 	    	KMAC kmac = kmacs.get(m);
-	    	for (int s=0; s<seqs.length;s++){
-//	    		System.out.print(s+" ");
-	    		if (s==60) {
-	    			kmac.setIsDebugging(); // debug
-	    			System.out.println();
-	    		}
-	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
-	    		if (kgs==null)
-	    			continue;
-	    		for (int i=0;i<kgs.length;i++){
-	    			KmerGroup kg = kgs[i];
-		    		MotifInstance mi = new MotifInstance();
-		    		mi.motifID = m;
-		    		mi.motifName = knames.get(m);
-		    		mi.score = kg.getScore();
-		    		int pos = kg.getPosBS();
-		    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
-		    			mi.position = pos-KMAC.RC;	
-		    			mi.strand = '-';
+		    	for (int s=0; s<seqs.length;s++){
+	//	    		System.out.print(s+" ");
+	//	    		if (s==60) {
+	//	    			kmac.setIsDebugging(); // debug
+	//	    			System.out.println();
+	//	    		}
+		    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
+		    		if (kgs==null)
+		    			continue;
+		    		for (int i=0;i<kgs.length;i++){
+		    			KmerGroup kg = kgs[i];
+			    		MotifInstance mi = new MotifInstance();
+			    		mi.motifID = m;
+			    		mi.motifName = knames.get(m);
+			    		mi.score = kg.getScore();
+			    		int pos = kg.getPosBS();
+			    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
+			    			mi.position = pos-KMAC.RC;	
+			    			mi.strand = '-';
+			    		}
+			    		else{
+			    			mi.position = pos;	
+			    			mi.strand = '+';
+			    		}
+			    		if (kg.getKmers().isEmpty())
+			    			System.err.println("Empty Kmer group match: "+kg.toString());
+			    		mi.matchSeq = kg.getCoveredSequence()+":"+kg.getAllKmerString();
+			    		mi.seqID = s;
+			    		instances.add(mi);
 		    		}
-		    		else{
-		    			mi.position = pos;	
-		    			mi.strand = '+';
-		    		}
-		    		if (kg.getKmers().isEmpty())
-		    			System.err.println("Empty Kmer group match: "+kg.toString());
-		    		mi.matchSeq = kg.getCoveredSequence()+":"+kg.getAllKmerString();
-		    		mi.seqID = s;
-		    		instances.add(mi);
-	    		}
-	    	}
+		    	}
 	    }
 		return instances;
 	}
@@ -386,38 +386,38 @@ public class MotifScan {
 	    String[] seqs_rc = new String[seqs.length];
 	    for (int i=0;i<seqs.length;i++)
 	    	seqs_rc[i]=SequenceUtil.reverseComplement(seqs[i]);
-	    
-    	System.out.println("  ... "+kname+" ...");
-    	for (int s=0; s<seqs.length;s++){
-    		if (s==60) {
-    			kmac.setIsDebugging(); // debug
-    			System.out.println();
-    		}
-    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
-    		if (kgs==null)
-    			continue;
-    		for (int i=0;i<kgs.length;i++){
-    			KmerGroup kg = kgs[i];
-	    		MotifInstance mi = new MotifInstance();
-	    		mi.motifID = motifId;
-	    		mi.motifName = kname;
-	    		mi.score = kg.getScore();
-	    		int pos = kg.getPosBS();
-	    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
-	    			mi.position = pos-KMAC.RC;	
-	    			mi.strand = '-';
+		    
+	    	System.out.println("  ... "+kname+" ...");
+	    	for (int s=0; s<seqs.length;s++){
+	//    		if (s==60) {
+	//    			kmac.setIsDebugging(); // debug
+	//    			System.out.println();
+	//    		}
+	    		KmerGroup[] kgs = kmac.findKsmGroupHits(seqs[s], seqs_rc[s]);
+	    		if (kgs==null)
+	    			continue;
+	    		for (int i=0;i<kgs.length;i++){
+	    			KmerGroup kg = kgs[i];
+		    		MotifInstance mi = new MotifInstance();
+		    		mi.motifID = motifId;
+		    		mi.motifName = kname;
+		    		mi.score = kg.getScore();
+		    		int pos = kg.getPosBS();
+		    		if (pos > KMAC.RC-seqs[s].length()*2){	// RC strand match
+		    			mi.position = pos-KMAC.RC;	
+		    			mi.strand = '-';
+		    		}
+		    		else{
+		    			mi.position = pos;	
+		    			mi.strand = '+';
+		    		}
+		    		if (kg.getKmers().isEmpty())
+		    			System.err.println("Empty Kmer group match: "+kg.toString());
+		    		mi.matchSeq = kg.getCoveredSequence()+":"+kg.getAllKmerString();
+		    		mi.seqID = s;
+		    		instances.add(mi);
 	    		}
-	    		else{
-	    			mi.position = pos;	
-	    			mi.strand = '+';
-	    		}
-	    		if (kg.getKmers().isEmpty())
-	    			System.err.println("Empty Kmer group match: "+kg.toString());
-	    		mi.matchSeq = kg.getCoveredSequence()+":"+kg.getAllKmerString();
-	    		mi.seqID = s;
-	    		instances.add(mi);
-    		}
-    	}
+	    	}
 		return instances;
 	}
 	
@@ -443,9 +443,9 @@ public class MotifScan {
 	    	double threshold = motifThresholds.get(m);
 	    	int width = pwm.length();
 		    for (int s=0; s<seqs.length;s++){
-		    	String str = seqs[s];
-		    	if (str.length()>=width){
-		    		WeightMatrixScoreProfile profiler = scorer.execute(str);
+			    	String str = seqs[s];
+			    	if (str.length()>=width){
+			    		WeightMatrixScoreProfile profiler = scorer.execute(str);
 					for (int i=0;i<profiler.length();i++){
 						double score = profiler.getHigherScore(i);
 						if (score >= threshold){
@@ -470,13 +470,13 @@ public class MotifScan {
 							instances.add(mi);
 						}
 					}
-		    	}
-		    	else{
-		    		Pair<Float,Integer> partialScore = WeightMatrixScorer.scorePartialMatrix(pwm, str.toCharArray(), true);
-		    		int p = partialScore.cdr()<WeightMatrixScorer.RC/2?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC);		    		
-		    		double partialThreshold = pwm.getPartialMaxScore(Math.abs(p),Math.abs(p)+str.length())*threshold/pwm.getMaxScore();
-		    		if (partialScore.car()>=partialThreshold || partialScore.car() >= threshold/2){
-			    		MotifInstance mi = new MotifInstance();
+			    	}
+			    	else{
+			    		Pair<Float,Integer> partialScore = WeightMatrixScorer.scorePartialMatrix(pwm, str.toCharArray(), true);
+			    		int p = partialScore.cdr()<WeightMatrixScorer.RC/2?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC);		    		
+			    		double partialThreshold = pwm.getPartialMaxScore(Math.abs(p),Math.abs(p)+str.length())*threshold/pwm.getMaxScore();
+			    		if (partialScore.car()>=partialThreshold || partialScore.car() >= threshold/2){
+				    		MotifInstance mi = new MotifInstance();
 						mi.motifID = m;
 						mi.strand = partialScore.cdr()<WeightMatrixScorer.RC/2?'+':'-';
 						mi.motifName = pwm.getName()+"_p"+(mi.strand=='+'?partialScore.cdr():(partialScore.cdr()-WeightMatrixScorer.RC));
@@ -485,8 +485,8 @@ public class MotifScan {
 						mi.position = 0;
 						mi.score = partialScore.car();
 						instances.add(mi);
-		    		}
-		    	}
+			    		}
+			    	}
 		    }
 	    }
 		return instances;
@@ -508,14 +508,14 @@ public class MotifScan {
 	    	if (pos>=0){
 	    		while(pos>=0){
 		    		MotifInstance mi = new MotifInstance();
-					mi.motifID = 0;
-					mi.seqID = s;
-					mi.matchSeq = kmer;
-					mi.position = pos;
-					mi.strand = strand;
-					mi.score = 1;
-					instances.add(mi);
-					pos = seq.indexOf(kmer, pos+1);
+				mi.motifID = 0;
+				mi.seqID = s;
+				mi.matchSeq = kmer;
+				mi.position = pos;
+				mi.strand = strand;
+				mi.score = 1;
+				instances.add(mi);
+				pos = seq.indexOf(kmer, pos+1);
 	    		}
 	    	}
 	    	String kmer_rc = SequenceUtils.reverseComplement(kmer);
@@ -524,14 +524,14 @@ public class MotifScan {
 	    	if (pos>=0){
 	    		while(pos>=0){
 		    		MotifInstance mi = new MotifInstance();
-					mi.motifID = 0;
-					mi.seqID = s;
-					mi.matchSeq = kmer;
-					mi.position = pos;
-					mi.strand = strand;
-					mi.score = 1;
-					instances.add(mi);
-					pos = seq.indexOf(kmer, pos+1);
+				mi.motifID = 0;
+				mi.seqID = s;
+				mi.matchSeq = kmer;
+				mi.position = pos;
+				mi.strand = strand;
+				mi.score = 1;
+				instances.add(mi);
+				pos = seq.indexOf(kmer, pos+1);
 	    		}
 	    	}
 	    }
