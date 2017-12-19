@@ -49,7 +49,7 @@ public class GEM {
 		ArrayList<String> conditionNames = new ArrayList<String>();
 		Vector<String> exptTags=new Vector<String>();
 		for(String s : args)
-        	if(s.contains("expt"))
+        	if(s.contains("expt") && s.contains("--"))
         		if(!exptTags.contains(s))
         			exptTags.add(s);
 		
@@ -61,62 +61,62 @@ public class GEM {
 
 		// esitmate chrom sizes for the genome if it is not provided with --g option
         if(genome==null){
-    		System.out.println("Estimating chromosome sizes from all read files (skip this step by adding a --g option)...\n");
+    			System.out.println("Estimating chromosome sizes from all read files (skip this step by adding a --g option)...\n");
 			HashMap<String, Integer> chrLenMap = new HashMap<String, Integer>();
-        	// each tag represents a condition
+			// each tag represents a condition
             for(String tag : exptTags){
-        		if(!tag.startsWith("--rf") && (!tag.startsWith("--rdb"))){
-    	        	String name = tag.replaceFirst("--expt", ""); 
-    	        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
-    	        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
-    	            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
-    	            if (fileFormat.equals("BAM"))
-    	            	fileFormat = "SAM";
-    	            if(expts.size()>0){
-    	                DeepSeqExpt e = new DeepSeqExpt(expts, fileFormat);
-    	                DeepSeqExpt c = new DeepSeqExpt(ctrls, fileFormat);
-    	                
-    	    			Map<String, Integer> currMap = e.getGenome().getChromLengthMap();
-    	    			for(String s: currMap.keySet()){
-    	    				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s)+1000)
-    	    					chrLenMap.put(s, currMap.get(s)+1000);
-    	    			}
-    	    			currMap = c.getGenome().getChromLengthMap();
-    	    			for(String s: currMap.keySet()){
-    	    				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
-    	    					chrLenMap.put(s, currMap.get(s));
-    	    			}
-    	            }
-        		}
-        	}
+	        		if(!tag.startsWith("--rf") && (!tag.startsWith("--rdb"))){
+		    	        	String name = tag.replaceFirst("--expt", ""); 
+		    	        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
+		    	        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
+		    	            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
+		    	            if (fileFormat.equals("BAM"))
+		    	            	fileFormat = "SAM";
+		    	            if(expts.size()>0){
+		    	                DeepSeqExpt e = new DeepSeqExpt(expts, fileFormat);
+		    	                DeepSeqExpt c = new DeepSeqExpt(ctrls, fileFormat);
+		    	                
+		    	    			Map<String, Integer> currMap = e.getGenome().getChromLengthMap();
+		    	    			for(String s: currMap.keySet()){
+		    	    				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s)+1000)
+		    	    					chrLenMap.put(s, currMap.get(s)+1000);
+		    	    			}
+		    	    			currMap = c.getGenome().getChromLengthMap();
+		    	    			for(String s: currMap.keySet()){
+		    	    				if(!chrLenMap.containsKey(s) || chrLenMap.get(s)<currMap.get(s))
+		    	    					chrLenMap.put(s, currMap.get(s));
+		    	    			}
+	    	            }
+	        		}
+	        	}
 			genome=new Genome("Genome", chrLenMap);
         }
 		
         // each tag represents a condition
         for(String tag : exptTags){
-        	String name="";
-        	if(tag.startsWith("--rf")){
-        		name = tag.replaceFirst("--rfexpt", ""); 
-        		conditionNames.add(name);
-        	}
-        	else {
-        		System.out.println("Loading data...");
-        		if(tag.startsWith("--rdb")){
-	        		name = tag.replaceFirst("--rdbexpt", ""); 
-	        		conditionNames.add(name);
-	        	}else{
-	        		name = tag.replaceFirst("--expt", ""); 
+	        	String name="";
+	        	if(tag.startsWith("--rf")){
+	        		name = tag.replaceFirst("--rfexpt", ""); 
 	        		conditionNames.add(name);
 	        	}
-	
-	        	if(name.length()>0)
-	        		System.out.println("    loading condition: "+name);
-	        	
-	        	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
-	        	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
-	        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
-	        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
-	        	boolean nonUnique = flags.contains("nonunique");
+	        	else {
+	        		System.out.println("Loading data...");
+	        		if(tag.startsWith("--rdb")){
+		        		name = tag.replaceFirst("--rdbexpt", ""); 
+		        		conditionNames.add(name);
+		        	}else{
+		        		name = tag.replaceFirst("--expt", ""); 
+		        		conditionNames.add(name);
+		        	}
+		
+		        	if(name.length()>0)
+		        		System.out.println("    loading condition: "+name);
+		        	
+		        	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
+		        	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
+		        	List<File> expts = Args.parseFileHandles(args, "expt"+name);
+		        	List<File> ctrls = Args.parseFileHandles(args, "ctrl"+name);  
+		        	boolean nonUnique = flags.contains("nonunique");
 	            String fileFormat = Args.parseString(args, "f", "BED").toUpperCase();
 	            if (fileFormat.equals("BAM"))
 	            	fileFormat = "SAM";
