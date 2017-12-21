@@ -274,8 +274,8 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ps.close();
 		return align;
 	}
-	public ChipSeqAlignment loadAlignment_withoutErrorChecking(int dbid){
-		ChipSeqAlignment align = new ChipSeqAlignment(dbid);
+	public ChipSeqAlignment loadAlignment_withoutErrorChecking(int dbid, Genome genome){
+		ChipSeqAlignment align = new ChipSeqAlignment(dbid, genome);
 		return align;
 	}
 

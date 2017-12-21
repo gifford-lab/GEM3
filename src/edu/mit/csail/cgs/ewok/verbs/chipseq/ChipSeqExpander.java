@@ -8,6 +8,7 @@ import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.deepseq.ReadHit;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.deepseq.utilities.FileReadLoader;
 import edu.mit.csail.cgs.ewok.verbs.Expander;
 import edu.mit.csail.cgs.utils.Closeable;
@@ -58,6 +59,28 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
         }
     }
 
+    private void getAlignsByID(Genome genome) throws SQLException {
+        if (alignments != null && genome.equals(lastGenome)) {
+            return;
+        }
+        alignments = new LinkedList<ChipSeqAlignment>();
+        lastGenome = genome;
+		
+        try {
+            String exptName = locator.getExptName(); 
+	    		if (CommonUtils.isNumeric(exptName)){		// special workaround without Oracle database
+	    			alignments.add(loader.loadAlignment_withoutErrorChecking(Integer.parseInt(exptName), genome));
+	    		}
+	    		else {
+	            alignments.addAll(locator.loadAlignments(loader, genome));
+	    		}
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+        } catch (NotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+    
     public ChipSeqExpander(ChipSeqLoader l, ChipSeqAlignment a, boolean closeLoader) {
         loader = l;
         alignments = new LinkedList<ChipSeqAlignment>();
@@ -70,7 +93,7 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
         try {
         	Collection<ChipSeqHit> hits = new LinkedList<ChipSeqHit>();
         	if (loader!=null){
-	            getAligns(a.getGenome());
+        			getAlignsByID(a.getGenome());
 	            hits = loader.loadByRegion(alignments, a);
         	}
         	if (file_loader!=null){
@@ -92,7 +115,7 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
     public int getHitCount(Region a) {
         int hits = 0;
         try {
-            getAligns(a.getGenome());
+        		getAlignsByID(a.getGenome());
             hits = loader.countByRegion(alignments, a);
             return hits;
         }

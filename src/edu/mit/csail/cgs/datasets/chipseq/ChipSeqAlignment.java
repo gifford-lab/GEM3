@@ -57,8 +57,9 @@ public class ChipSeqAlignment {
 	 * @param readdb_id
 	 * @throws SQLException
 	 */
-	ChipSeqAlignment(int readdb_id){ 
+	ChipSeqAlignment(int readdb_id, Genome genome){ 
 		dbid = readdb_id;
+		this.genome = genome;
 	}
 
 	public int getDBID() { return dbid; }

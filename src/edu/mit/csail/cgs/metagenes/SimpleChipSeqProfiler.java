@@ -7,7 +7,6 @@ package edu.mit.csail.cgs.metagenes;
 import java.util.*;
 
 import edu.mit.csail.cgs.datasets.general.*;
-import edu.mit.csail.cgs.datasets.species.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.*;
 

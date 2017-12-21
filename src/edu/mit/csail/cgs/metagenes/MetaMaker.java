@@ -15,6 +15,8 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.ChipSeqExpander;
 import edu.mit.csail.cgs.metagenes.swing.MetaFrame;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -52,8 +54,7 @@ public class MetaMaker {
 		try {
 			if(args.length < 2){ printError();}
 			
-			Pair<Organism, Genome> pair = Args.parseGenome(args);
-			Genome gen = pair.cdr();
+			Genome gen = CommonUtils.parseGenome(args);
 			
 			// color of the plots
 			getColorMap();
@@ -111,6 +112,8 @@ public class MetaMaker {
 			if(profilerType.equals("simplechipseq") || profilerType.equals("fiveprime")){
 				//normalizeProfile=true;
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
+//				DeepSeqExpt ip = new DeepSeqExpt(gen, exptlocs, "readdb", -1);
+				
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
 				for(ChipSeqLocator loc : exptlocs){
 					System.out.println(loc.getExptName()+"\t"+loc.getReplicateString()+"\t"+loc.getAlignName());
@@ -120,12 +123,13 @@ public class MetaMaker {
 					List<File> fs = new ArrayList<File>();
 					for (String s: files)
 						fs.add(new File(s));
-					exptexps.add(new ChipSeqExpander(pair.cdr(), fs, format));
+					exptexps.add(new ChipSeqExpander(gen, fs, format));
 				}
 				System.out.println("Loading data...");
 				if(profilerType.equals("fiveprime"))
 					readExt = -1;
 				profiler = new SimpleChipSeqProfiler(params, exptexps, readExt, readShift, pbMax,strand);
+				
 			}else if(profilerType.equals("simplechiapet")) {
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
@@ -232,8 +236,6 @@ public class MetaMaker {
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
-		} catch (NotFoundException e) {
-			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -241,7 +243,7 @@ public class MetaMaker {
 	}
 	
 	private static void printError(){
-		System.err.println("Usage: MetaMaker --species <organism;genome> \n" +
+		System.err.println("Usage: MetaMaker (--species <organism;genome> | --g <genome chrom.sizes file> \n" +
 				"--peaks <peaks file name> anchor point coordinates, can be stranded\n" +
 				"--out <output root name> \n" +
 				"--expt <experiment names> : can be BAM file or readdb names, add more --expt for replicates \n" +
