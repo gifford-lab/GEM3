@@ -157,6 +157,7 @@ public class WarpOptionsFrame extends JFrame implements ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		if (e.getSource() == ok) {
 			WarpOptions opts = pane.parseOptions();
+			opts.readdb = pane.readdb;
 			if (genomeString!=null)
 				opts.genomeString = genomeString;
 			PainterContainer pc = null;

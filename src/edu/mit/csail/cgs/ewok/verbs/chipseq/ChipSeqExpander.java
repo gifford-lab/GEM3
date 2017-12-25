@@ -69,7 +69,7 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
         try {
             String exptName = locator.getExptName(); 
 	    		if (CommonUtils.isNumeric(exptName)){		// special workaround without Oracle database
-	    			alignments.add(loader.loadAlignment_withoutErrorChecking(Integer.parseInt(exptName), genome));
+	    			alignments.add(loader.loadAlignment_noOracle(new ChipSeqExpt(Integer.parseInt(exptName),null,null,null), genome));
 	    		}
 	    		else {
 	            alignments.addAll(locator.loadAlignments(loader, genome));

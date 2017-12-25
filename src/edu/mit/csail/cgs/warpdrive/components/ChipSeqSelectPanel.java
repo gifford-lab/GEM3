@@ -18,6 +18,7 @@ import javax.swing.table.*;
 import java.sql.*;
 import edu.mit.csail.cgs.utils.Pair;
 import edu.mit.csail.cgs.datasets.chipseq.*;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.viz.components.GenericSelectPanel;
 
 public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
@@ -30,7 +31,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
 
     public ChipSeqSelectPanel() { 
         try {
-            chipSeqLoader = new ChipSeqLoader(true);
+            chipSeqLoader = new ChipSeqLoader();
         } catch (Exception e) {
             e.printStackTrace();
             chipSeqLoader = null;
@@ -73,22 +74,17 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
     }
 
     public void retrieveData() {
-        try {
-            synchronized(locators) {
-                locators.clear();
-                System.err.println("Getting all alignments from retrieveData");
-                alignments.clear();
-                alignments.addAll(chipSeqLoader.loadAlignments(getGenome()));
-                for(ChipSeqAlignment align : alignments) { 
-                    locators.add(new ChipSeqLocator(align.getExpt().getName(),
-                                                       align.getExpt().getReplicate(),
-                                                       align.getName()));
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e.toString(), e);
+        synchronized(locators) {
+            locators.clear();
+            System.err.println("Getting all alignments from retrieveData()");
+            alignments.clear();
+        		for (ChipSeqExpt expt: readdb.values()) {
+        			alignments.add(chipSeqLoader.loadAlignment_noOracle(expt, getGenome()));
+        			locators.add(new ChipSeqLocator(expt.getName(), expt.getReplicate(), expt.getAligner()));
+        		}
         }
     }
+    
     public void updateComponents() {
         selectedModel.clear();
         filteredModel.clear();

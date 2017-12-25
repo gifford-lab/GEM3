@@ -112,7 +112,6 @@ public class MetaMaker {
 			if(profilerType.equals("simplechipseq") || profilerType.equals("fiveprime")){
 				//normalizeProfile=true;
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
-//				DeepSeqExpt ip = new DeepSeqExpt(gen, exptlocs, "readdb", -1);
 				
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
 				for(ChipSeqLocator loc : exptlocs){

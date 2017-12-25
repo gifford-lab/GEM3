@@ -13,6 +13,7 @@ import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.datasets.general.*;
 import edu.mit.csail.cgs.datasets.species.*;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.datasets.chipchip.*;
 import edu.mit.csail.cgs.datasets.chipseq.*;
 import edu.mit.csail.cgs.utils.database.DatabaseException;
@@ -33,7 +34,7 @@ public class Args {
     private static Map<String[], Genome> genomes = new HashMap<String[], Genome>();
     private static Map<String[], Set<String>> flags = new HashMap<String[],Set<String>>();
     private static Map<String[], Set<String>> arguments = new HashMap<String[],Set<String>>();
-    
+    private static Map<String, String> readdbName2Id = new HashMap<String, String>();
    
     /**
      * Parses all arguments. Similar to parseFlags, but with no restrictions on 
@@ -340,23 +341,31 @@ public class Args {
     }
     
     /**
-     * parses ChipSeqLocators from the <tt>argname</tt> parameters.  Takes
-     * either "name;alignment" or "name;replicate;alignment"
+     * parses ChipSeqLocators from the <tt>argname</tt> parameters.  <br>Takes only "name;replicate;alignment".<br>
+     * A readdb meta file is loaded from --readdb parameter to look up the alignment id of the readdb name.
      * @see edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator
      */
     public static List<ChipSeqLocator> parseChipSeq(String args[], String argname) {
+    		if (readdbName2Id.isEmpty()) {
+    			for (int i = 0; i < args.length; i++) {
+    	            if (args[i].equals("--readdb")) {
+    	            		ArrayList<String> lines = CommonUtils.readTextFile(args[i+1]);
+    	            		for (String line: lines) {
+    	            			String[] fs = line.trim().split("\t");
+    	            			readdbName2Id.put(fs[1], fs[4]);
+    	            		}
+    	            }
+    			}
+    		}
+    		
         argname = "--" + argname;
         ArrayList<ChipSeqLocator> output = new ArrayList<ChipSeqLocator>();
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals(argname)) {
-                String[] pieces = args[++i].trim().split(";");
-                if (pieces.length == 2) {
-                    output.add(new ChipSeqLocator(pieces[0], pieces[1]));
-                } else if (pieces.length == 3) {
-                    output.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
-                } else if (pieces.length == 1){
-                	output.add(new ChipSeqLocator(pieces[0]));
-                }
+            		String readdbName = args[++i].trim();
+        			if (readdbName2Id.containsKey(readdbName)) {
+        				output.add(new ChipSeqLocator(readdbName2Id.get(readdbName)));
+        			}
                 else{
                     throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + args[i]);
                 }

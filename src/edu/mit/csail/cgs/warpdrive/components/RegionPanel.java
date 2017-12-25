@@ -423,10 +423,8 @@ Listener<EventObject>, PainterContainer, MouseListener {
 		if (opts.chipseqExpts.size() > 0) {
 			try {
 				ChipSeqLoader loader = new ChipSeqLoader();
-
 				for(int i = 0; i < opts.chipseqExpts.size(); i++) { 
-					Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chipseqExpts.get(i), genome);
-
+					Collection<ChipSeqAlignment> alignments = loader.loadAlignment_noOracle(opts.chipseqExpts.get(i), genome, opts.readdb);
 					RegionModel m;
 					RegionPaintable p;
 					if (opts.chipseqHistogramPainter) {

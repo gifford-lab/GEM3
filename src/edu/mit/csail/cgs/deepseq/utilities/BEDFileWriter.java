@@ -44,24 +44,23 @@ public class BEDFileWriter{
         	if(tag.startsWith("--rdb")){
         		name = tag.replaceFirst("--rdbexpt", ""); 
         		conditionNames.add(name);
-        	}
 
-        	if(name.length()>0)
-        		System.out.println("Init loading condition: "+name);
-        	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
-        	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
-        	
-        	if(rdbexpts.size()>0){
-	        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(gen, rdbexpts, "readdb", -1),new DeepSeqExpt(gen, rdbctrls, "readdb", -1)));
-	        }else{
-	        	System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
-	        	printError();
-	        	System.exit(1);
+	        	if(name.length()>0)
+	        		System.out.println("Init loading condition: "+name);
+	        	List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,"rdbexpt"+name);
+	        	List<ChipSeqLocator> rdbctrls = Args.parseChipSeq(args,"rdbctrl"+name);
+	        	
+	        	if(rdbexpts.size()>0){
+		        	experiments.add(new Pair<DeepSeqExpt,DeepSeqExpt>(new DeepSeqExpt(gen, rdbexpts, "readdb", -1),new DeepSeqExpt(gen, rdbctrls, "readdb", -1)));
+		        }else{
+		        	System.err.println("Must provide either an aligner output file or Gifford lab DB experiment name for the signal experiment (but not both)");
+		        	printError();
+		        	System.exit(1);
+		        }
 	        }
-        }
-        
-
+	    	}
 	}
+	
     public void writeBED(){
 		for (int i=0;i<experiments.size();i++){
 			Pair<DeepSeqExpt, DeepSeqExpt> pair = experiments.get(i);

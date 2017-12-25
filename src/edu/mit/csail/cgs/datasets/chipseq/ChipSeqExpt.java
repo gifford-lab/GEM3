@@ -38,7 +38,7 @@ import java.sql.Connection;
 public class ChipSeqExpt {
     
     private int dbid, readlength;
-    private String name, replicate;
+    private String name, replicate, aligner;
     private Factor factor;
     private Condition condition;
     private Cells cells;
@@ -66,9 +66,16 @@ public class ChipSeqExpt {
         cells = mloader.loadCells(cellsID);
         condition = mloader.loadCondition(condID);
     }
+    public ChipSeqExpt(int dbid, String name, String replicate, String aligner) { 
+        this.dbid = dbid;
+        this.name = name;
+        this.replicate = replicate;
+        this.aligner = aligner;
+    }
     
     public int getDBID() { return dbid; }
     public String getName() { return name; }
+    public String getAligner() { return aligner; }
     public String getReplicate() { return replicate; }
     public Organism getOrganism() { return species; }
     public Factor getFactor() { return factor; }

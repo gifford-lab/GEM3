@@ -17,6 +17,8 @@ import edu.mit.csail.cgs.datasets.locators.ExptLocator;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
+import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
@@ -60,7 +62,8 @@ public class WarpOptions {
     // General connection info
     public String species, genome;
     public String genomeString;			// not DB, genome file with chrom info
-
+    public HashMap<String, ChipSeqExpt> readdb;				// the readdb meta file matching the genome
+    
     // where to start the display.
     // Either use (chrom,start,stop), gene, position (which will be parsed
     // into either chrom/start/stop or gene), or a regionListFile
@@ -388,6 +391,15 @@ public class WarpOptions {
             if (args[i].equals("--g")) {
                 opts.genomeString = args[++i];
             }
+            if (args[i].equals("--readdb") && opts.readdb==null) {
+                opts.readdb = new HashMap<String, ChipSeqExpt>();
+                ArrayList<String> lines = CommonUtils.readTextFile(args[++i]);
+            		for (String line: lines) {
+            			String[] fs = line.trim().split("\t");
+            			String[] rs2 = fs[1].split(";");
+            			opts.readdb.put(fs[1], new ChipSeqExpt(Integer.parseInt(fs[4]), rs2[0], rs2[1], rs2[2]));
+            		}
+            }
             if (args[i].equals("--genome") || args[i].equals("--genomeversion")) {
                 opts.genome = args[++i];
             }
@@ -469,18 +481,20 @@ public class WarpOptions {
                     }
                 }
                 if (args[i].equals("--chipseq")) {
-                    String pieces[] = args[++i].split(";");
-                    if (pieces.length == 2) {
-                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-                    } else if (pieces.length >= 3) {
-                        Set<String> repnames = new HashSet<String>();
-                        for (int j = 1; j < pieces.length - 1; j++) {
-                            repnames.add(pieces[j]);
-                        }
-                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
-                    } else {
-                        System.err.println("Couldn't parse --chipseq " + args[i]);
-                    }
+                		if (opts.chipseqExpts.isEmpty())
+                			opts.chipseqExpts.addAll(Args.parseChipSeq(args));
+//                    String pieces[] = args[++i].split(";");
+//                    if (pieces.length == 2) {
+//                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
+//                    } else if (pieces.length >= 3) {
+//                        Set<String> repnames = new HashSet<String>();
+//                        for (int j = 1; j < pieces.length - 1; j++) {
+//                            repnames.add(pieces[j]);
+//                        }
+//                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
+//                    } else {
+//                        System.err.println("Couldn't parse --chipseq " + args[i]);
+//                    }
                 }
                 if (args[i].equals("--pairedchipseq")) {
                     String pieces[] = args[++i].split(";");
@@ -603,8 +617,6 @@ public class WarpOptions {
                         opts.regionTracks.put(pieces[0],pieces[1]);
                     }
                 }
-
-
             }
         } finally {
         	if (wmloader!=null)

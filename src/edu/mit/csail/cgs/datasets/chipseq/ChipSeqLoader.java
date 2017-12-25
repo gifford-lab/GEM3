@@ -184,7 +184,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ps.close();
 
 		if (expt == null) {
-			String err = String.format("No such ChipPet Experiment %d", dbid);
+			String err = String.format("No such ChipSeq Experiment %d", dbid);
 			throw new NotFoundException(err);
 		}
 		return expt;
@@ -274,11 +274,20 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ps.close();
 		return align;
 	}
-	public ChipSeqAlignment loadAlignment_withoutErrorChecking(int dbid, Genome genome){
-		ChipSeqAlignment align = new ChipSeqAlignment(dbid, genome);
+	public ChipSeqAlignment loadAlignment_noOracle(ChipSeqExpt expt, Genome genome){
+		ChipSeqAlignment align = new ChipSeqAlignment(expt, genome);
 		return align;
 	}
-
+	public Collection<ChipSeqAlignment> loadAlignment_noOracle(ChipSeqLocator locator, Genome genome, HashMap<String, ChipSeqExpt> readdb){
+		List<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
+		for (String rep : locator.getReplicates()) {
+			String locStr = String.format("%s;%s;%s", locator.getExptName(), rep, locator.getAlignName());
+			ChipSeqAlignment align = new ChipSeqAlignment(readdb.get(locStr), genome);
+			output.add(align);
+		}
+		return output;
+	}
+	
 	public Collection<ChipSeqAlignment> loadAlignments(ChipSeqLocator locator, Genome genome) throws SQLException, NotFoundException {
 		List<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
         if (locator.getReplicates().size() == 0) {

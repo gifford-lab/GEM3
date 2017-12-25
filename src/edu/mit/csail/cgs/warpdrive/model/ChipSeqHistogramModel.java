@@ -105,44 +105,36 @@ public class ChipSeqHistogramModel extends WarpModel implements RegionModel, Run
                     resultsPlus = null;
                     resultsMinus = null;
                     resultsPval = null;
-                    if (false/*props.ShowInteractionKernel*/) {
-                    	//resultsPlus = getForwardInteractionKernel();
-                    	//resultsMinus = getReverseInteractionKernel();
-                    } else if (false/*props.ShowInteractionHistogram*/) {
-                    	//resultsPlus = getInteractionProbability();
-                    	//resultsMinus = new TreeMap<Integer,Float>();
-                    } else if (false) {
-                    	//resultsPlus = getInteractionProfile();
-                    	//resultsMinus = new TreeMap<Integer,Float>();
-                    } else if (props.ShowSelfLigationOverlap) {
+                    if (props.ShowSelfLigationOverlap) {
                     	resultsPlus = getSelfHistogram();
                     	resultsMinus = new TreeMap<Integer,Float>();
-                    } else if (props.UseWeights) {
+                    } 
+                    else if (props.UseWeights) {
                         if (!props.ShowPairedReads || props.ShowSingleReads) {
                         	try{
 	                            resultsPlus = Aggregator.mergeHistogramsFF(resultsPlus,
-	                                                                       client.getWeightHistogram(ids,
-	                                                                                                 region.getGenome().getChromID(region.getChrom()),
-	                                                                                                 false,
-	                                                                                                 extension,
-	                                                                                                 width,
-	                                                                                                 (int)props.DeDuplicate,
-	                                                                                                 region.getStart(),
-	                                                                                                 region.getEnd(),
-	                                                                                                 null,
-	                                                                                                 true));
+                                                       client.getWeightHistogram(ids,
+                                                             region.getGenome().getChromID(region.getChrom()),
+                                                             false,
+                                                             extension,
+                                                             width,
+                                                             (int)props.DeDuplicate,
+                                                             region.getStart(),
+                                                             region.getEnd(),
+                                                             null,
+                                                             true));
 	                            
 	                            resultsMinus = Aggregator.mergeHistogramsFF(resultsMinus,
-	                                                                        client.getWeightHistogram(ids,
-	                                                                                                  region.getGenome().getChromID(region.getChrom()),
-	                                                                                                  false,
-	                                                                                                  extension,
-	                                                                                                  width,
-	                                                                                                  (int)props.DeDuplicate,
-	                                                                                                  region.getStart(),
-	                                                                                                  region.getEnd(),
-	                                                                                                  null,
-	                                                                                                  false));
+                                                        client.getWeightHistogram(ids,
+                                                              region.getGenome().getChromID(region.getChrom()),
+                                                              false,
+                                                              extension,
+                                                              width,
+                                                              (int)props.DeDuplicate,
+                                                              region.getStart(),
+                                                              region.getEnd(),
+                                                              null,
+                                                              false));
                         	}catch (Exception ex) {
                                 //Fail silently if there are no single read alignments
                             }

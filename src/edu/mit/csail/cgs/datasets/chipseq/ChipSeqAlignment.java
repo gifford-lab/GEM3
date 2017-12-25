@@ -5,7 +5,6 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.utils.NotFoundException;
 
 import java.sql.*;
-import java.util.*;
 
 /**
  * @author tdanford
@@ -54,11 +53,11 @@ public class ChipSeqAlignment {
 	}
 	/**
 	 * This is a work around to use readdb id directly, without accessing the Oracle database
-	 * @param readdb_id
-	 * @throws SQLException
 	 */
-	ChipSeqAlignment(int readdb_id, Genome genome){ 
-		dbid = readdb_id;
+	ChipSeqAlignment(ChipSeqExpt expt, Genome genome){ 
+		dbid = expt.getDBID();
+		this.expt = expt;
+		this.name = expt.getName();
 		this.genome = genome;
 	}
 

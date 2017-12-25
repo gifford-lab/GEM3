@@ -53,7 +53,7 @@ public class ReadDBReadLoader extends ReadLoader{
 				for(ChipSeqLocator locator : locs){
 					String exptName = locator.getExptName(); exptNames.add(exptName);
 					if (CommonUtils.isNumeric(exptName)){		// special workaround without Oracle database
-						aligns.add(loader.loadAlignment_withoutErrorChecking(Integer.parseInt(exptName), null));
+						aligns.add(loader.loadAlignment_noOracle(new ChipSeqExpt(Integer.parseInt(exptName),null,null,null), null));
 						continue;
 					}
 					if (locator.getAlignName() == null) {
