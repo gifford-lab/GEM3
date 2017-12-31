@@ -143,12 +143,10 @@ public class ExonGenePainter extends RegionPaintable {
         if (!canPaint()) {
             return;
         }
-        boolean drawtracklabel = props.DrawTrackLabel;
         boolean drawgenenames = props.DrawGeneNames;
         boolean drawallgenenames = props.DrawAllGeneNames;
                
         int w = x2 - x1, h = y2 - y1;
-        int my = y1 + (h / 2);
  
         int numTracks = Math.max(1, layout.getNumTracks());
         int trackHeight = Math.max(2, h/(numTracks*2));

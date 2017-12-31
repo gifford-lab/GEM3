@@ -18,7 +18,7 @@ public abstract class GenericSelectPanel<X> extends JSplitPane implements Closea
 	protected ObjectTableModel<X> filteredModel, selectedModel;
 	protected JPanel buttonPanel;
 	private Genome genome;
-	protected HashMap<String, ChipSeqExpt> readdb;				// the readdb meta file matching the genome
+	protected TreeMap<String, ChipSeqExpt> readdb;				// the readdb meta file matching the genome
 	private boolean handlingNewGenome, dataReady;
 	private Thread thread;
 	/*
@@ -58,7 +58,7 @@ public abstract class GenericSelectPanel<X> extends JSplitPane implements Closea
 	 * operation by querying: handlingNewGenome() and dataReady()
 	 * 
 	 */
-	public void setGenome(Genome g,  HashMap<String, ChipSeqExpt> readdb) {
+	public void setGenome(Genome g,  TreeMap<String, ChipSeqExpt> readdb) {
 		if (g == null) {
 			return;
 		}

@@ -36,6 +36,7 @@ import edu.mit.csail.cgs.utils.database.*;
 
 public class RefGeneGenerator<X extends Region> 
     implements Expander<X,Gene>, SelfDescribingVerb, DefaultConstantsParameterized, edu.mit.csail.cgs.utils.Closeable {
+	private  TreeMap<String, ArrayList<Gene>>geneTable; 			// Gene annotation hgTable, loaded from geneTable file
 
     private PreparedStatement ps, nameps, getalias, getgenesym, getallps;
     private java.sql.Connection cxn;
@@ -106,7 +107,27 @@ public class RefGeneGenerator<X extends Region>
         flipstrand = false;
         wantsymbol = true;
     }
-    
+ 
+    public RefGeneGenerator(TreeMap<String, ArrayList<Gene>>geneTable) { 
+        ps = null;
+        nameps = null;
+        getalias = null;
+        getgenesym = null;
+        wantsExons = true;
+        wantalias = true;
+        genome = null;
+        tablename = symboltable = null;
+        aliastype = -1;
+        upstream = 0;
+        downstream = 0;
+        closestN = 0;
+        wantCoding = false;
+        toBoundary = TOSTART;        
+        flipstrand = false;
+        wantsymbol = true;
+        this.geneTable = geneTable;
+    }
+
     public void setGenome(Genome g, String t) { 
         genome = g;
         ResourceBundle res = ResourceBundle.getBundle("edu.mit.csail.cgs.ewok.gene_names");
@@ -334,8 +355,23 @@ public class RefGeneGenerator<X extends Region>
             throw new DatabaseException(e.toString(), e);
         }
     }
+    
+    private 	Iterator<Gene> getGenesInRegion(Region r) {
+    		ArrayList<Gene> genes = new ArrayList<Gene>();
+    		for (ArrayList<Gene> gl: geneTable.values()) {
+    			for (Gene g: gl) {
+    				if (r.overlaps(g))
+    					genes.add(g);
+    			}
+    		}
+    		return genes.iterator();
+    }
 
     public synchronized Iterator<Gene> execute(X region) {
+    	
+    		if (geneTable!=null) 
+    			return getGenesInRegion(region);
+    			
         if (!region.getGenome().equals(genome) || ps == null) {
             close();
             setGenome(region.getGenome(), tablename);
@@ -383,7 +419,7 @@ public class RefGeneGenerator<X extends Region>
     /* common method for execute() and byName().  The prepared statement should have all
        variables be bound and be ready to execute.  IT should return fields from
        the genes table */
-    public synchronized Iterator<Gene> parseResults(PreparedStatement ps) throws SQLException {
+	public synchronized Iterator<Gene> parseResults(PreparedStatement ps) throws SQLException {
         ResultSet rs = ps.executeQuery();
         ArrayList<Gene> results = new ArrayList<Gene>();
         while (rs.next()) {

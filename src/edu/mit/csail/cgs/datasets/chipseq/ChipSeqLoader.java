@@ -278,7 +278,7 @@ public class ChipSeqLoader implements edu.mit.csail.cgs.utils.Closeable {
 		ChipSeqAlignment align = new ChipSeqAlignment(expt, genome);
 		return align;
 	}
-	public Collection<ChipSeqAlignment> loadAlignment_noOracle(ChipSeqLocator locator, Genome genome, HashMap<String, ChipSeqExpt> readdb){
+	public Collection<ChipSeqAlignment> loadAlignment_noOracle(ChipSeqLocator locator, Genome genome, TreeMap<String, ChipSeqExpt> readdb){
 		List<ChipSeqAlignment> output = new ArrayList<ChipSeqAlignment>();
 		for (String rep : locator.getReplicates()) {
 			String locStr = String.format("%s;%s;%s", locator.getExptName(), rep, locator.getAlignName());

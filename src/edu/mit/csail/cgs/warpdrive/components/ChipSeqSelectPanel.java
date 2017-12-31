@@ -76,7 +76,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
     public void retrieveData() {
         synchronized(locators) {
             locators.clear();
-            System.err.println("Getting all alignments from retrieveData()");
+//            System.err.println("Getting all alignments from retrieveData()");
             alignments.clear();
         		for (ChipSeqExpt expt: readdb.values()) {
         			alignments.add(chipSeqLoader.loadAlignment_noOracle(expt, getGenome()));

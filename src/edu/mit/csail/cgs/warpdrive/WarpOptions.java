@@ -15,6 +15,8 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysis;
 import edu.mit.csail.cgs.datasets.expression.Experiment;
 import edu.mit.csail.cgs.datasets.locators.ExptLocator;
 import edu.mit.csail.cgs.datasets.motifs.*;
+import edu.mit.csail.cgs.datasets.species.ExonicGene;
+import edu.mit.csail.cgs.datasets.species.Gene;
 import edu.mit.csail.cgs.datasets.species.Genome;
 import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
@@ -61,9 +63,9 @@ public class WarpOptions {
 	
     // General connection info
     public String species, genome;
-    public String genomeString;			// not DB, genome file with chrom info
-    public HashMap<String, ChipSeqExpt> readdb;				// the readdb meta file matching the genome
-    
+    static public String genomeString;						// not DB, genome file with chrom info
+    static public TreeMap<String, ChipSeqExpt> readdb;		// the readdb meta file matching the genome
+    static public TreeMap<String, ArrayList<Gene>>geneTable; 			// Gene annotation hgTable
     // where to start the display.
     // Either use (chrom,start,stop), gene, position (which will be parsed
     // into either chrom/start/stop or gene), or a regionListFile
@@ -389,15 +391,44 @@ public class WarpOptions {
                 }
             }  
             if (args[i].equals("--g")) {
-                opts.genomeString = args[++i];
+                genomeString = args[++i];
             }
-            if (args[i].equals("--readdb") && opts.readdb==null) {
-                opts.readdb = new HashMap<String, ChipSeqExpt>();
+            if (args[i].equals("--readdb") && readdb==null) {
+                readdb = new TreeMap<String, ChipSeqExpt>();
                 ArrayList<String> lines = CommonUtils.readTextFile(args[++i]);
             		for (String line: lines) {
             			String[] fs = line.trim().split("\t");
             			String[] rs2 = fs[1].split(";");
-            			opts.readdb.put(fs[1], new ChipSeqExpt(Integer.parseInt(fs[4]), rs2[0], rs2[1], rs2[2]));
+            			readdb.put(fs[1], new ChipSeqExpt(Integer.parseInt(fs[4]), rs2[0], rs2[1], rs2[2]));
+            		}
+            }
+            if (args[i].equals("--gtable") && geneTable==null) {		// Gene annotation hgTable
+            		geneTable = new TreeMap<String, ArrayList<Gene>>();
+            		ArrayList<String> lines = CommonUtils.readTextFile(args[++i]);
+            		Genome g = new Genome("Genome", new File(genomeString));
+            		for (String l: lines) {
+        				if (l.startsWith("#"))
+        					continue;
+        				String f[] = l.split("\t");
+        				String chr = f[2].replace("chr", "");
+        				if (!g.containsChromName(chr))
+        					continue;
+        				String name = f[12].toLowerCase();		// convert to lower case for case-insensitive search
+        				if (!geneTable.containsKey(name))
+        					geneTable.put(name, new ArrayList<Gene>());
+        				
+        				ExonicGene gene = new ExonicGene(g, f[2].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]),
+        						f[12], f[1], f[3].charAt(0), "gtable");
+        				String starts[] = f[9].split(",");
+        				String ends[] = f[10].split(",");
+        				for (int j=0;j<starts.length;j++) {
+        					gene.addExon(Integer.parseInt(starts[j]), Integer.parseInt(ends[j]));
+        				}
+//        				if (name.equalsIgnoreCase("Isl1")) {
+//        					i=i+0;
+//        				}
+        					
+        				geneTable.get(name).add(gene);
             		}
             }
             if (args[i].equals("--genome") || args[i].equals("--genomeversion")) {

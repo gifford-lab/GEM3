@@ -39,8 +39,6 @@ public class WarpOptionsPane
     // regexes get special handling at the moment because there's no gui component for them,
     // so cache them if neccessary
 	private boolean isLocal;
-	private String genomeString;
-	public HashMap<String, ChipSeqExpt> readdb;				// the readdb meta file matching the genome
 	
     private HashMap<String,String> regexes;
     private boolean handlingChange, closed;
@@ -50,7 +48,7 @@ public class WarpOptionsPane
 
     private JPanel speciesLocationPanel,
         annotationsPanel,
-        chipChipPanel,
+//        chipChipPanel,
         chipSeqPanel,
         chipSeqAnalysisPanel,
         pairedChipSeqPanel,
@@ -159,13 +157,13 @@ public class WarpOptionsPane
     public void setClosed() { closed = true; }
     
     public void close() { 
-        exptSelect.close();
-        exprSelect.close();
+//        exptSelect.close();
+//        exprSelect.close();
         chipSeqSelect.close();
         pairedChipSeqSelect.close();
         chiaPetArcSelect.close();
-        chipSeqAnalysisSelect.close();
-    	bindingSelect.close(); 
+//        chipSeqAnalysisSelect.close();
+//    	bindingSelect.close(); 
     	closed = true; 
     }
     
@@ -189,7 +187,7 @@ public class WarpOptionsPane
     private void init() throws NotFoundException {
         speciesLocationPanel = new JPanel();
         annotationsPanel = new JPanel();
-        chipChipPanel = new JPanel();       
+//        chipChipPanel = new JPanel();       
         chipSeqPanel = new JPanel();
         chipSeqAnalysisPanel = new JPanel();
         pairedChipSeqPanel = new JPanel();
@@ -304,54 +302,54 @@ public class WarpOptionsPane
         optionsPanel.add(common);
         optionsPanel.add(oldchipseq);
         
-        // Annotations tab
-        JPanel lists = new JPanel();
-        lists.setLayout(new GridLayout(3,2));
-        JPanel boxes = new JPanel();
-        boxes.setLayout(new GridLayout(3,2));
-        genesmodel = new DefaultListModel();
-        ncrnasmodel = new DefaultListModel();
-        otherfeatsmodel = new DefaultListModel();
-        genes = new JList(genesmodel);
-        ncrnas = new JList(ncrnasmodel);
-        otherfeats = new JList(otherfeatsmodel);
-        genes.setVisibleRowCount(7);genes.setLayoutOrientation(JList.VERTICAL);
-        otherfeats.setVisibleRowCount(7); otherfeats.setLayoutOrientation(JList.VERTICAL);
-        ncrnas.setVisibleRowCount(7); ncrnas.setLayoutOrientation(JList.VERTICAL);
-        
-        polyA = new JCheckBox("PolyA sequences");
-        gccontent = new JCheckBox("GC content");
-        pyrpurcontent = new JCheckBox("Pyr/Pur content");
-        cpg = new JCheckBox("CpG");
-        regexmatcher = new JCheckBox("Regex Matcher");
-        geneslabel = new JLabel("Genes");
-        ncrnaslabel = new JLabel("ncRNAs");
-        otherfeatslabel = new JLabel("Other annotations");
-
-        lists.add(geneslabel);
-        lists.add(new JScrollPane(genes));
-        lists.add(ncrnaslabel);
-        lists.add(new JScrollPane(ncrnas));
-        lists.add(otherfeatslabel);
-        lists.add(new JScrollPane(otherfeats));
-        boxes.add(polyA);
-        boxes.add(gccontent);
-        boxes.add(pyrpurcontent);
-        boxes.add(cpg);
-        boxes.add(regexmatcher);
-
-        annotationsPanel.setLayout(new BorderLayout());
-        annotationsPanel.add(lists,BorderLayout.CENTER);
-        annotationsPanel.add(boxes,BorderLayout.SOUTH);
-
-        // use this to make the spacing be not-stupid
-        dummy = new JPanel();        
-        dummy.add(speciesLocationPanel);
-        dummy.add(new JPanel());
-        addTab("Species & Location",new JScrollPane(dummy));
-
-        dummy = new JPanel();  dummy.add(annotationsPanel); dummy.add(new JPanel());
-        addTab("Annotations",new JScrollPane(dummy));
+//        // Annotations tab
+//        JPanel lists = new JPanel();
+//        lists.setLayout(new GridLayout(3,2));
+//        JPanel boxes = new JPanel();
+//        boxes.setLayout(new GridLayout(3,2));
+//        genesmodel = new DefaultListModel();
+//        ncrnasmodel = new DefaultListModel();
+//        otherfeatsmodel = new DefaultListModel();
+//        genes = new JList(genesmodel);
+//        ncrnas = new JList(ncrnasmodel);
+//        otherfeats = new JList(otherfeatsmodel);
+//        genes.setVisibleRowCount(7);genes.setLayoutOrientation(JList.VERTICAL);
+//        otherfeats.setVisibleRowCount(7); otherfeats.setLayoutOrientation(JList.VERTICAL);
+//        ncrnas.setVisibleRowCount(7); ncrnas.setLayoutOrientation(JList.VERTICAL);
+//        
+//        polyA = new JCheckBox("PolyA sequences");
+//        gccontent = new JCheckBox("GC content");
+//        pyrpurcontent = new JCheckBox("Pyr/Pur content");
+//        cpg = new JCheckBox("CpG");
+//        regexmatcher = new JCheckBox("Regex Matcher");
+//        geneslabel = new JLabel("Genes");
+//        ncrnaslabel = new JLabel("ncRNAs");
+//        otherfeatslabel = new JLabel("Other annotations");
+//
+//        lists.add(geneslabel);
+//        lists.add(new JScrollPane(genes));
+//        lists.add(ncrnaslabel);
+//        lists.add(new JScrollPane(ncrnas));
+//        lists.add(otherfeatslabel);
+//        lists.add(new JScrollPane(otherfeats));
+//        boxes.add(polyA);
+//        boxes.add(gccontent);
+//        boxes.add(pyrpurcontent);
+//        boxes.add(cpg);
+//        boxes.add(regexmatcher);
+//
+//        annotationsPanel.setLayout(new BorderLayout());
+//        annotationsPanel.add(lists,BorderLayout.CENTER);
+//        annotationsPanel.add(boxes,BorderLayout.SOUTH);
+//
+//        // use this to make the spacing be not-stupid
+//        dummy = new JPanel();        
+//        dummy.add(speciesLocationPanel);
+//        dummy.add(new JPanel());
+//        addTab("Species & Location",new JScrollPane(dummy));
+//
+//        dummy = new JPanel();  dummy.add(annotationsPanel); dummy.add(new JPanel());
+//        addTab("Annotations",new JScrollPane(dummy));
 
         addTab("Seq Data", chipSeqPanel);
         addTab("Paired Seq", pairedChipSeqPanel);
@@ -368,7 +366,7 @@ public class WarpOptionsPane
         //addTab("Expression", exprPanel);
         //addTab("Peaks",peakPanel);
         //dummy = new JPanel();  dummy.add(chipChipPanel); dummy.add(new JPanel());
-        addTab("ChIP-Chip Data",chipChipPanel);
+//        addTab("ChIP-Chip Data",chipChipPanel);
 
         // file tracks tab
         filetracks = new FileBasedTracksPanel();        
@@ -393,8 +391,6 @@ public class WarpOptionsPane
     }
 
     public void init(WarpOptions opts) throws NotFoundException {
-        genomeString = opts.genomeString;
-        readdb = opts.readdb;
         handlingChange = true;
         init();
         createdFrom = opts;      
@@ -423,30 +419,30 @@ public class WarpOptionsPane
 	        
 	        relative.setSelected(opts.relative);
 	        hash.setSelected(opts.hash);
-	        gccontent.setSelected(opts.gccontent);        
-	        pyrpurcontent.setSelected(opts.pyrpurcontent);
-	        cpg.setSelected(opts.cpg);
-	        regexmatcher.setSelected(opts.regexmatcher);
-	        seqletters.setSelected(opts.seqletters);
-	        oldchipseq.setSelected(!opts.chipseqHistogramPainter);
-	
-	        int[] selected = new int[opts.genes.size()];
-	        for (int i = 0; i < opts.genes.size(); i++) {
-	            selected[i] = genesmodel.indexOf(opts.genes.get(i));            
-	        }
-	        genes.setSelectedIndices(selected);
-	        selected = new int[opts.ncrnas.size()];
-	        for (int i = 0; i < opts.ncrnas.size(); i++) {
-	            selected[i] = ncrnasmodel.indexOf(opts.ncrnas.get(i));            
-	        }
-	        ncrnas.setSelectedIndices(selected);
-	        selected = new int[opts.otherannots.size()];
-	        for (int i = 0; i < opts.otherannots.size(); i++) {
-	            selected[i] = otherfeatsmodel.indexOf(opts.otherannots.get(i));
-	        }
-	        otherfeats.setSelectedIndices(selected);
-	        motifScanPanel.addToSelected(opts.motifscans);
-	        motifPanel.addToSelected(opts.motifs);
+//	        gccontent.setSelected(opts.gccontent);        
+//	        pyrpurcontent.setSelected(opts.pyrpurcontent);
+//	        cpg.setSelected(opts.cpg);
+//	        regexmatcher.setSelected(opts.regexmatcher);
+//	        seqletters.setSelected(opts.seqletters);
+//	        oldchipseq.setSelected(!opts.chipseqHistogramPainter);
+//	
+//	        int[] selected = new int[opts.genes.size()];
+//	        for (int i = 0; i < opts.genes.size(); i++) {
+//	            selected[i] = genesmodel.indexOf(opts.genes.get(i));            
+//	        }
+//	        genes.setSelectedIndices(selected);
+//	        selected = new int[opts.ncrnas.size()];
+//	        for (int i = 0; i < opts.ncrnas.size(); i++) {
+//	            selected[i] = ncrnasmodel.indexOf(opts.ncrnas.get(i));            
+//	        }
+//	        ncrnas.setSelectedIndices(selected);
+//	        selected = new int[opts.otherannots.size()];
+//	        for (int i = 0; i < opts.otherannots.size(); i++) {
+//	            selected[i] = otherfeatsmodel.indexOf(opts.otherannots.get(i));
+//	        }
+//	        otherfeats.setSelectedIndices(selected);
+//	        motifScanPanel.addToSelected(opts.motifscans);
+//	        motifPanel.addToSelected(opts.motifs);
 	        
 //	        try {
 //	            Genome g = loadGenome();
@@ -562,24 +558,24 @@ public class WarpOptionsPane
 	        these.chipseqHistogramPainter = !oldchipseq.isSelected();
 	
 	        // parse the annotations tab
-	        Object[] selected = genes.getSelectedValues();
-	        for (int i = 0; i < selected.length; i++) {
-	            these.genes.add(selected[i].toString());
-	        }
-	        selected = ncrnas.getSelectedValues();
-	        for (int i = 0; i < selected.length; i++) {
-	            these.ncrnas.add(selected[i].toString());
-	        }
-	        selected = otherfeats.getSelectedValues();
-	        for (int i = 0; i < selected.length; i++) {
-	            these.otherannots.add(selected[i].toString());
-	        }
-	        these.motifscans.addAll(motifScanPanel.getSelected());
-	        these.motifs.addAll(motifPanel.getSelected());
-	        these.gccontent = gccontent.isSelected();
-	        these.pyrpurcontent = pyrpurcontent.isSelected();
-	        these.cpg = cpg.isSelected();
-	        these.regexmatcher = regexmatcher.isSelected();
+//	        Object[] selected = genes.getSelectedValues();
+//	        for (int i = 0; i < selected.length; i++) {
+//	            these.genes.add(selected[i].toString());
+//	        }
+//	        selected = ncrnas.getSelectedValues();
+//	        for (int i = 0; i < selected.length; i++) {
+//	            these.ncrnas.add(selected[i].toString());
+//	        }
+//	        selected = otherfeats.getSelectedValues();
+//	        for (int i = 0; i < selected.length; i++) {
+//	            these.otherannots.add(selected[i].toString());
+//	        }
+//	        these.motifscans.addAll(motifScanPanel.getSelected());
+//	        these.motifs.addAll(motifPanel.getSelected());
+//	        these.gccontent = gccontent.isSelected();
+//	        these.pyrpurcontent = pyrpurcontent.isSelected();
+//	        these.cpg = cpg.isSelected();
+//	        these.regexmatcher = regexmatcher.isSelected();
 	        
 	        // parse the peaks tab
 //	        Collection<BindingScan> scans = bindingSelect.getSelected();
@@ -629,7 +625,6 @@ public class WarpOptionsPane
     
     public WarpOptions parseAndDiff() {
         WarpOptions these = parseOptions();
-        these.readdb = this.readdb;
         // need to see if we have existing options and if they're compatible.
         // if they are, return the difference.  Otherwise, return the complete
         // options.
@@ -642,15 +637,15 @@ public class WarpOptionsPane
     /* updates the choice of experiments based on the
        currently selected genome and species */
     private void updateExptSelection() {
-        Genome lg = new Genome("Genome", new File(genomeString));;
+        Genome lg = new Genome("Genome", new File(WarpOptions.genomeString));;
         Genome g = lg;
         
         System.err.println("UPDATING GENOME FOR EXPERIMENT SELECTION " + g);
 
 //        exptSelect.setGenome(lg);
-        chipSeqSelect.setGenome(lg, readdb);
-        pairedChipSeqSelect.setGenome(lg, readdb);
-        chiaPetArcSelect.setGenome(lg, readdb);
+        chipSeqSelect.setGenome(lg, WarpOptions.readdb);
+        pairedChipSeqSelect.setGenome(lg, WarpOptions.readdb);
+        chiaPetArcSelect.setGenome(lg, WarpOptions.readdb);
 //        chipSeqAnalysisSelect.setGenome(lg);
 //        motifPanel.setGenome(lg);
 //        motifScanPanel.setGenome(lg);
@@ -658,8 +653,8 @@ public class WarpOptionsPane
 //            bindingSelect.setGenome(lg);            
 //        }
         // update the set of Gene annotations
-        genesmodel.clear();
-        otherfeatsmodel.clear();
+//        genesmodel.clear();
+//        otherfeatsmodel.clear();
 
         if(g != null) { 
 //            for(String type : gfLoader.getTypes(g)) {
