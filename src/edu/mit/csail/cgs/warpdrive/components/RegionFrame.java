@@ -63,8 +63,8 @@ public class RegionFrame extends JFrame {
     private int imageheight = 1200, imagewidth = 1600;
 
     public RegionFrame(WarpOptions opts) {
-    	if (opts.genomeString!=null){
-    		setTitle(opts.genomeString.substring(opts.genomeString.lastIndexOf("/")+1));
+    	if (WarpOptions.genomeString!=null){
+    		setTitle(WarpOptions.genomeString.substring(WarpOptions.genomeString.lastIndexOf("/")+1));
     	}
     	else
     		setTitle(opts.species + " " + opts.genome);
@@ -92,7 +92,7 @@ public class RegionFrame extends JFrame {
     
     private JMenuBar createDefaultJMenuBar(WarpOptions opts) { 
         JMenuBar jmb = new JMenuBar();
-        JMenu filemenu, imagemenu, navigationmenu, displaymenu, toolsmenu; 
+        JMenu filemenu, imagemenu, navigationmenu, displaymenu; 
         JMenuItem item;
         final RegionFrame thisframe = this;
         final RegionPanel thispanel = panel;
@@ -100,7 +100,6 @@ public class RegionFrame extends JFrame {
         filemenu.add((item = new JMenuItem("Configure Tracks")));
         item.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {                    
-                    WarpOptions current = panel.getCurrentOptions();
                     WarpOptionsFrame frame;
                     try {
                         frame = new WarpOptionsFrame(panel.getCurrentOptions());
@@ -301,7 +300,6 @@ public class RegionFrame extends JFrame {
                     
                                 /* we could create a BindingEventAnnotationPanel here instead ... */
                                 RegionListPanel regionPanel = new RegionListPanel(targetPanel, null);
-                                JFrame listFrame = RegionListPanel.makeFrame(regionPanel, "BLAST Hits");                                
                                 RegionList regionList = regionPanel;
 
                                 BlastRegionRunnable runner = 
