@@ -13,7 +13,6 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLoader;
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqAnalysis;
 import edu.mit.csail.cgs.datasets.expression.Experiment;
-import edu.mit.csail.cgs.datasets.locators.ExptLocator;
 import edu.mit.csail.cgs.datasets.motifs.*;
 import edu.mit.csail.cgs.datasets.species.ExonicGene;
 import edu.mit.csail.cgs.datasets.species.Gene;
@@ -22,7 +21,6 @@ import edu.mit.csail.cgs.datasets.species.Organism;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.tools.utils.Args;
 import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.Pair;
 
 public class WarpOptions {
 

@@ -57,7 +57,7 @@ public class ChipSeqAlignment {
 	ChipSeqAlignment(ChipSeqExpt expt, Genome genome){ 
 		dbid = expt.getDBID();
 		this.expt = expt;
-		this.name = expt.getName();
+		this.name = expt.getAligner();
 		this.genome = genome;
 	}
 

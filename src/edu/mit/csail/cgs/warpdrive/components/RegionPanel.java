@@ -451,11 +451,11 @@ public class RegionPanel extends JPanel
 		}
 		if (opts.pairedChipseqExpts.size() > 0) {
 			try {
-				ChipSeqLoader loader = new ChipSeqLoader(true);
+				ChipSeqLoader loader = new ChipSeqLoader();
 				for (int i = 0; i < opts.pairedChipseqExpts.size(); i++) {
 
-					Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.pairedChipseqExpts.get(i),
-							genome);
+					Collection<ChipSeqAlignment> alignments = loader.loadAlignment_noOracle(opts.pairedChipseqExpts.get(i),
+							genome, WarpOptions.readdb);
 					PairedEndModel m = new PairedEndModel(alignments);
 					PairedEndPainter p = new PairedEndPainter(m);
 					addModel(m);
@@ -474,10 +474,11 @@ public class RegionPanel extends JPanel
 		}
 		if (opts.chiapetArcs.size() > 0) {
 			try {
-				ChipSeqLoader loader = new ChipSeqLoader(true);
+				ChipSeqLoader loader = new ChipSeqLoader();
 				for (int i = 0; i < opts.chiapetArcs.size(); i++) {
 
-					Collection<ChipSeqAlignment> alignments = loader.loadAlignments(opts.chiapetArcs.get(i), genome);
+					Collection<ChipSeqAlignment> alignments = loader.loadAlignment_noOracle(opts.chiapetArcs.get(i),
+							genome, WarpOptions.readdb);
 					InteractionArcModel m = new InteractionArcModel(alignments);
 					InteractionArcPainter p = new InteractionArcPainter(m);
 					addModel(m);
