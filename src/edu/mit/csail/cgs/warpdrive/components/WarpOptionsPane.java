@@ -640,7 +640,7 @@ public class WarpOptionsPane
         Genome lg = new Genome("Genome", new File(WarpOptions.genomeString));;
         Genome g = lg;
         
-        System.err.println("UPDATING GENOME FOR EXPERIMENT SELECTION " + g);
+//        System.err.println("UPDATING GENOME FOR EXPERIMENT SELECTION " + g);
 
 //        exptSelect.setGenome(lg);
         chipSeqSelect.setGenome(lg, WarpOptions.readdb);

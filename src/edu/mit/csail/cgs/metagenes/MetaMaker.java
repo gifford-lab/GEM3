@@ -14,14 +14,10 @@ import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.locators.ChipChipLocator;
 import edu.mit.csail.cgs.datasets.species.Genome;
-import edu.mit.csail.cgs.datasets.species.Organism;
-import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.ChipSeqExpander;
 import edu.mit.csail.cgs.metagenes.swing.MetaFrame;
 import edu.mit.csail.cgs.tools.utils.Args;
-import edu.mit.csail.cgs.utils.NotFoundException;
-import edu.mit.csail.cgs.utils.Pair;
 
 public class MetaMaker {
 	private static boolean batchRun = false;
@@ -103,19 +99,17 @@ public class MetaMaker {
 			if(Args.parseFlags(args).contains("cluster")){cluster=true;}
 			
 			if(gen==null || (expts.size()==0 && files.size()==0)){printError();}
-	
+            		
 			BinningParameters params = new BinningParameters(winLen, bins);
 			System.out.println("Binding Parameters:\tWindow size: "+params.getWindowSize()+"\tBins: "+params.getNumBins());
 		
 			PointProfiler profiler=null;
 			boolean normalizeProfile=false;
 			if(profilerType.equals("simplechipseq") || profilerType.equals("fiveprime")){
-				//normalizeProfile=true;
+				// Args.parseChipSeq convert readdb name to ID, expander than can use ID to get the data
 				List<ChipSeqLocator> exptlocs = Args.parseChipSeq(args,"expt");
-				
 				ArrayList<ChipSeqExpander> exptexps = new ArrayList<ChipSeqExpander>();
 				for(ChipSeqLocator loc : exptlocs){
-					System.out.println(loc.getExptName()+"\t"+loc.getReplicateString()+"\t"+loc.getAlignName());
 					exptexps.add(new ChipSeqExpander(loc));
 				}
 				if (!files.isEmpty()){

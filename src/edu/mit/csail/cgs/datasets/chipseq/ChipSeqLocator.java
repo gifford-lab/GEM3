@@ -4,6 +4,7 @@
 package edu.mit.csail.cgs.datasets.chipseq;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Set;
@@ -72,7 +73,12 @@ public class ChipSeqLocator implements Comparable<ChipSeqLocator> {
     public String getAlignName() { return alignName; }
     
     public Collection<String> getReplicates() { return reps; }
-    
+    public Collection<String> getReaddbNames(){
+    		ArrayList<String> results = new ArrayList<String>();
+    		for (String rep: reps)
+    			results.add(String.format("%s;%s;%s", exptName, rep, alignName));
+    		return results;
+    }
     public String getReplicateString() {
         if(reps.isEmpty()) { return "all"; }
         StringBuilder sb = new StringBuilder();

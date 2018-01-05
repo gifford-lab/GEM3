@@ -102,7 +102,7 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
         }
         synchronized(locators) {
             locators.clear();
-            System.err.println("Getting all alignments from filter()");
+//            System.err.println("Getting all alignments from filter()");
             for (ChipSeqAlignment align : alignments){
                 if (patt == null || patt.matcher(align.toString()).find()) {
                     locators.add(new ChipSeqLocator(align.getExpt().getName(),

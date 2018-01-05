@@ -80,7 +80,7 @@ public class RegionFrame extends JFrame {
 
         this.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent arg0) {
-                System.out.println("WindowClosing: " + arg0.toString());
+                System.out.println("WarpDrive Window has been closed.");
                 unregisterRegionFrame(RegionFrame.this);
                 panel.handleWindowClosing();
                 System.exit(0);

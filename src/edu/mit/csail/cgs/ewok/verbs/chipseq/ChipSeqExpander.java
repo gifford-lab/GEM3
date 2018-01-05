@@ -15,7 +15,7 @@ import edu.mit.csail.cgs.utils.Closeable;
 import edu.mit.csail.cgs.utils.NotFoundException;
 
 public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable {
-
+	private static TreeMap<String, ChipSeqExpt> readdb;
     private ChipSeqLoader loader;
     private FileReadLoader file_loader;
     private Genome lastGenome;
@@ -31,6 +31,25 @@ public class ChipSeqExpander implements Expander<Region, ChipSeqHit>, Closeable 
         alignments = null;
         lastGenome = null;
     }
+    public ChipSeqExpander(ChipSeqLocator loc, String readdb_file_name) throws SQLException, IOException{
+        loader = new ChipSeqLoader();
+        closeLoader = true;
+        lastGenome = null;
+        
+    		if (readdb==null) {
+    			readdb = new TreeMap<String, ChipSeqExpt>();
+	        ArrayList<String> lines = CommonUtils.readTextFile(readdb_file_name);
+	    		for (String line: lines) {
+	    			String[] fs = line.trim().split("\t");
+	    			String[] rs2 = fs[1].split(";");
+	    			readdb.put(fs[1], new ChipSeqExpt(Integer.parseInt(fs[4]), rs2[0], rs2[1], rs2[2]));
+	    		}
+	    }
+    		
+    		alignments = new LinkedList<ChipSeqAlignment>();
+    		alignments.addAll(loader.loadAlignment_noOracle(loc, null, readdb));
+    }
+    
     public ChipSeqExpander(Genome g, List<File> files, String format) throws SQLException, IOException {
         lastGenome = g;
         file_loader = new FileReadLoader(lastGenome, files, format, 5, false, -1, 1);
