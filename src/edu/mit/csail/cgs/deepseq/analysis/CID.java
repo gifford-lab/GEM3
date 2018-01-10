@@ -1945,6 +1945,7 @@ public class CID {
 		}
 
 		// load histone mark or DHS, SE regions
+		System.out.println();
 		String hms_file = Args.parseString(args, "regions", null);
 		ArrayList<List<Region>> allRegions = new ArrayList<List<Region>>();
 		if (hms_file != null) {
@@ -1954,7 +1955,6 @@ public class CID {
 				System.out.println("Loaded " + hms.get(i));
 			}
 			allRegions.trimToSize();
-			System.out.println();
 		}
 
 		// load other Interaction calls

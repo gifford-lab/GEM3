@@ -41,7 +41,7 @@ public abstract class WarpProperties extends Model {
                             prop.configuring = false;   
                         }
                         done = true;
-                        System.err.println("** Set configuring to false in " + p);
+//                        System.err.println("** Set configuring to false in " + p);
                     } catch (InterruptedException e) {
                         // ignore it and go back to sleeping
                     }
@@ -61,7 +61,7 @@ public abstract class WarpProperties extends Model {
             }
             touse.add(p);
         }
-        System.err.println("Creating Frame");
+//        System.err.println("Creating Frame");
         MultiModelPrefs frame = new MultiModelPrefs(touse,regionpanel);
         (new Thread(new DoneConfiguring(touse,frame))).start();
         frame.setSize(frame.getPreferredSize());

@@ -265,6 +265,7 @@ public class WarpOptionsFrame extends JFrame implements ActionListener {
 	 * @param args
 	 */
 	public static void main(String args[]) {
+		System.out.println("Starting WarpDrive (version: 2018-01-10)\n");
 		try {
 			WarpOptionsFrame.configureLogging();
 

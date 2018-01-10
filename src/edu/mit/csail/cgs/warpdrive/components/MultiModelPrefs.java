@@ -52,7 +52,7 @@ public class MultiModelPrefs extends JFrame {
         if (!panels.isEmpty()) {
             JScrollPane pane = new JScrollPane(mainpanel);
             pane.setPreferredSize(new Dimension(700,height));
-            System.err.println("preferred size is " + mainpanel.getPreferredSize());
+//            System.err.println("preferred size is " + mainpanel.getPreferredSize());
             c.add(pane, BorderLayout.CENTER);
             JPanel buttons = new JPanel();
             buttons.setLayout(new FlowLayout());

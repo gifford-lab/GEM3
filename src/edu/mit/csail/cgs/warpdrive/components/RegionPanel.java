@@ -1644,7 +1644,7 @@ public class RegionPanel extends JPanel
 			HashSet<WarpProperties> props = new HashSet<WarpProperties>();
 			ArrayList<RegionPaintable> plist = painters.get(track);
 			for (RegionPaintable p : plist) {
-				System.err.println("looking at painter " + p);
+//				System.err.println("looking at painter " + p);
 				props.add(p.getProperties());
 				if (painterModelMap.get(p) == null) {
 					continue;
