@@ -99,8 +99,7 @@ public class ChipSeqLocator implements Comparable<ChipSeqLocator> {
     }
     
     public String toString() { 
-    	return String.format("%s (rep: %s, align: %s)", exptName,
-                getReplicateString(), alignName); 
+    		return String.format("%s;%s;%s", exptName, getReplicateString(), alignName); 
     }
 
     public int compareTo(ChipSeqLocator other) {

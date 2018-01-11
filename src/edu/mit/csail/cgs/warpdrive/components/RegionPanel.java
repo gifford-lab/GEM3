@@ -159,7 +159,7 @@ public class RegionPanel extends JPanel
 				}
 			}
 		} else {
-			if (opts.genomeString != null)
+			if (WarpOptions.genomeString != null)
 				setRegion(new Region(genome, "19", 200000, 420000));
 			else
 				throw new NullPointerException("Need a starting position in either chrom or gene");
@@ -273,7 +273,7 @@ public class RegionPanel extends JPanel
 			p.addEventListener(this);
 			addPainter(p);
 		}
-		if (opts.genomeString == null) {
+		if (WarpOptions.genomeString == null) {
 			opts.mergeInto(currentOptions);
 			ChipChipDataset dataset = new ChipChipDataset(genome);
 			// there should be one scale model for each chip-chip track. We need to keep

@@ -58,7 +58,7 @@ public class ExpanderModel<IN,OUT> extends WarpModel implements Runnable {
             }
         }
         
-        System.err.println("ExpanderModel run() is finishing.");
+//        System.err.println("ExpanderModel run() is finishing.");
     }
 
     protected void setExpander(Expander<IN,OUT> expander) {

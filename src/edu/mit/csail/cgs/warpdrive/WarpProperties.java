@@ -50,7 +50,7 @@ public abstract class WarpProperties extends Model {
         }            
     }
     public static void configure(Collection<? extends WarpProperties> props, JPanel regionpanel) {
-        System.err.println("Configuring " + props);
+//        System.err.println("Configuring " + props);
         Collection<WarpProperties> touse = new ArrayList<WarpProperties>();
         for (WarpProperties p : props) {
             synchronized(p) {
