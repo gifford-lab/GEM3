@@ -339,7 +339,7 @@ public class Args {
     public static List<ChipSeqLocator> parseChipSeq(String args[]) {
         return parseChipSeq(args,"chipseq");
     }
-    
+
     /**
      * parses ChipSeqLocators from the <tt>argname</tt> parameters.  <br>Takes only "name;replicate;alignment".<br>
      * A readdb meta file is loaded from --readdb parameter to look up the alignment id of the readdb name.
@@ -363,7 +363,12 @@ public class Args {
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals(argname)) {
             		String readdbName = args[++i].trim();
-        			if (readdbName2Id.containsKey(readdbName)) {
+//            		if (argname.equals("--chipseq") || argname.equals("--pairedchipseq") || argname.equals("--chiapetarc")) {
+//            			String f[] = readdbName.split(";");
+//            			output.add(new ChipSeqLocator(f[0], f[1], f[2]));
+//            		}
+//            		else 
+            		if (readdbName2Id.containsKey(readdbName)) {
         				output.add(new ChipSeqLocator(readdbName2Id.get(readdbName)));
         			}
                 else{

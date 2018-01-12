@@ -57,8 +57,6 @@ public class WarpOptions {
 	private int preferredWindowTopLeftX;
 	private int preferredWindowTopLeftY;
 	
-	
-	
     // General connection info
     public String species, genome;
     static public String genomeString;						// not DB, genome file with chrom info
@@ -71,6 +69,7 @@ public class WarpOptions {
     public int start, stop;
 
     // tracks to paint and their options
+    public boolean isLocal;
     public boolean hash, relative, seqletters, gccontent, pyrpurcontent, cpg, regexmatcher;
     public ArrayList<BindingScan> bindingScans;
     public ArrayList<String> genes, ncrnas, otherannots;
@@ -330,6 +329,7 @@ public class WarpOptions {
         o.regionListFile = regionListFile;
         o.start = start;
         o.stop = stop;
+        o.isLocal = isLocal;
         o.hash = hash;
         o.gccontent = gccontent;
         o.pyrpurcontent = pyrpurcontent;
@@ -477,6 +477,9 @@ public class WarpOptions {
                 if (args[i].equals("--hash")) { 
                     opts.hash = true;
                 }
+                if (args[i].equals("--local")) { 
+                    opts.isLocal = true;
+                }
                 if (args[i].equals("--gccontent")) {
                     opts.gccontent = true;
                 }
@@ -510,20 +513,18 @@ public class WarpOptions {
                     }
                 }
                 if (args[i].equals("--chipseq")) {
-                		if (opts.chipseqExpts.isEmpty())
-                			opts.chipseqExpts.addAll(Args.parseChipSeq(args));
-//                    String pieces[] = args[++i].split(";");
-//                    if (pieces.length == 2) {
-//                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-//                    } else if (pieces.length >= 3) {
-//                        Set<String> repnames = new HashSet<String>();
-//                        for (int j = 1; j < pieces.length - 1; j++) {
-//                            repnames.add(pieces[j]);
-//                        }
-//                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
-//                    } else {
-//                        System.err.println("Couldn't parse --chipseq " + args[i]);
-//                    }
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 2) {
+                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
+                    } else if (pieces.length >= 3) {
+                        Set<String> repnames = new HashSet<String>();
+                        for (int j = 1; j < pieces.length - 1; j++) {
+                            repnames.add(pieces[j]);
+                        }
+                        opts.chipseqExpts.add(new ChipSeqLocator(pieces[0], repnames, pieces[pieces.length-1]));
+                    } else {
+                        System.err.println("Couldn't parse --chipseq " + args[i]);
+                    }
                 }
                 if (args[i].equals("--pairedchipseq")) {
                     String pieces[] = args[++i].split(";");
@@ -545,65 +546,65 @@ public class WarpOptions {
                         System.err.println("Couldn't parse --chiapetarc " + args[i]);
                     }
                 }
-                if (args[i].equals("--chipseqanalysis")) {
-                    String pieces[] = args[++i].split(";");
-                    if (pieces.length == 2) {
-                        opts.chipseqAnalyses.add(ChipSeqAnalysis.get(chipseqloader, pieces[0], pieces[1]));
-                    } else {
-                        System.err.println("Couldn't parse --chipseqanalysis " + args[i]);
-                    }                
-                }
-
-                if (args[i].equals("--agilent") || args[i].equals("--chipchip")) {                
-                    System.err.println("Parsing AGILENT option");
-                    System.err.println("args[i+1] = " + args[i+1]);
-                    String pieces[] = args[++i].split(";");
-                    ExptNameVersion env = null;
-                    if (pieces.length == 2) {
-                        env = new ExptNameVersion(pieces[0],pieces[1]);
-                    } else if (pieces.length == 3) {
-                        env = new ExptNameVersion(pieces[0],pieces[1], pieces[2]);
-                    }
-                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                        i += 2;
-                        env.setLabel(args[i]);
-                    }
-                    opts.agilentdata.add(env);
-                }
-                if (args[i].equals("--ll") ||
-                    args[i].equals("--mle")) {
-                    String pieces[] = args[++i].split(";");
-                    AnalysisNameVersion env = null;
-                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
-                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                        i += 2;
-                        env.setLabel(args[i]);
-                    }
-                    opts.agilentll.add(env);
-                }            
-                if (args[i].equals("--bayes")) {
-                    String pieces[] = args[++i].split(";");
-                    AnalysisNameVersion env = null;
-                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
-                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                        i += 2;
-                        env.setLabel(args[i]);
-                    }
-                    opts.bayesresults.add(env);
-                }
-                if (args[i].equals("--msp")) {
-                    String pieces[] = args[++i].split(";");
-                    AnalysisNameVersion env = null;
-                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
-                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
-                        i += 2;
-                        env.setLabel(args[i]);
-                    }
-                    opts.msp.add(env);             
-                }
-                if (args[i].equals("--sgdOther")) {
-                    opts.otherannots.add("sgdOther");
-                }
+//                if (args[i].equals("--chipseqanalysis")) {
+//                    String pieces[] = args[++i].split(";");
+//                    if (pieces.length == 2) {
+//                        opts.chipseqAnalyses.add(ChipSeqAnalysis.get(chipseqloader, pieces[0], pieces[1]));
+//                    } else {
+//                        System.err.println("Couldn't parse --chipseqanalysis " + args[i]);
+//                    }                
+//                }
+//
+//                if (args[i].equals("--agilent") || args[i].equals("--chipchip")) {                
+//                    System.err.println("Parsing AGILENT option");
+//                    System.err.println("args[i+1] = " + args[i+1]);
+//                    String pieces[] = args[++i].split(";");
+//                    ExptNameVersion env = null;
+//                    if (pieces.length == 2) {
+//                        env = new ExptNameVersion(pieces[0],pieces[1]);
+//                    } else if (pieces.length == 3) {
+//                        env = new ExptNameVersion(pieces[0],pieces[1], pieces[2]);
+//                    }
+//                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+//                        i += 2;
+//                        env.setLabel(args[i]);
+//                    }
+//                    opts.agilentdata.add(env);
+//                }
+//                if (args[i].equals("--ll") ||
+//                    args[i].equals("--mle")) {
+//                    String pieces[] = args[++i].split(";");
+//                    AnalysisNameVersion env = null;
+//                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
+//                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+//                        i += 2;
+//                        env.setLabel(args[i]);
+//                    }
+//                    opts.agilentll.add(env);
+//                }            
+//                if (args[i].equals("--bayes")) {
+//                    String pieces[] = args[++i].split(";");
+//                    AnalysisNameVersion env = null;
+//                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
+//                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+//                        i += 2;
+//                        env.setLabel(args[i]);
+//                    }
+//                    opts.bayesresults.add(env);
+//                }
+//                if (args[i].equals("--msp")) {
+//                    String pieces[] = args[++i].split(";");
+//                    AnalysisNameVersion env = null;
+//                    env = new AnalysisNameVersion(pieces[0],pieces[1]);
+//                    if (i < args.length - 2 && args[i + 1].equals("--label")) {
+//                        i += 2;
+//                        env.setLabel(args[i]);
+//                    }
+//                    opts.msp.add(env);             
+//                }
+//                if (args[i].equals("--sgdOther")) {
+//                    opts.otherannots.add("sgdOther");
+//                }
                 if (args[i].equals("--regionList")) {
                     opts.regionListFile = args[++i];
                 }

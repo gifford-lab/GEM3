@@ -141,9 +141,9 @@ public class WarpOptionsPane
 	        pcLoader = new PeakCallerFactoryLoader();
 	        annotLoader = new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
         }
-//        else {
-//        		isLocal = true;
-//        }
+        if (opts.isLocal) {
+        		isLocal = true;
+        }
         
         closed = false;
         init(opts);
@@ -361,7 +361,7 @@ public class WarpOptionsPane
         dummy = new JPanel(); dummy.add(chiapettracks); dummy.add(new JPanel());
         addTab("Sprout",new JScrollPane(dummy));
         
-        addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
+//        addTab("ChipSeq Analysis", chipSeqAnalysisPanel);
         
         //addTab("Expression", exprPanel);
         //addTab("Peaks",peakPanel);
@@ -373,18 +373,18 @@ public class WarpOptionsPane
         dummy = new JPanel();  dummy.add(filetracks); dummy.add(new JPanel());
         addTab("File Tracks",new JScrollPane(dummy));
                 
-        dummy = new JPanel();  
-        dummy.setLayout(new BorderLayout());
-        dummy.add(motifScanPanel,BorderLayout.CENTER); 
-        //        motifScanPanel.setPreferredSize(dummy.getPreferredSize());
-        //        motifScanPanel.resetToPreferredSizes();
-        //        addTab("Motifs",new JScrollPane(dummy));
-        addTab("Motif Scans",dummy);
-
-        dummy = new JPanel();
-        dummy.setLayout(new BorderLayout());
-        dummy.add(motifPanel,BorderLayout.CENTER);
-        addTab("Motifs",dummy);
+//        dummy = new JPanel();  
+//        dummy.setLayout(new BorderLayout());
+//        dummy.add(motifScanPanel,BorderLayout.CENTER); 
+//        //        motifScanPanel.setPreferredSize(dummy.getPreferredSize());
+//        //        motifScanPanel.resetToPreferredSizes();
+//        //        addTab("Motifs",new JScrollPane(dummy));
+//        addTab("Motif Scans",dummy);
+//
+//        dummy = new JPanel();
+//        dummy.setLayout(new BorderLayout());
+//        dummy.add(motifPanel,BorderLayout.CENTER);
+//        addTab("Motifs",dummy);
         
         dummy = new JPanel();  dummy.add(optionsPanel); dummy.add(new JPanel());
         addTab("Display Options",new JScrollPane(dummy));
@@ -417,8 +417,8 @@ public class WarpOptionsPane
 	            gene.setText(opts.gene);
 	        }
 	        
-	        relative.setSelected(opts.relative);
-	        hash.setSelected(opts.hash);
+//	        relative.setSelected(opts.relative);
+//	        hash.setSelected(opts.hash);
 //	        gccontent.setSelected(opts.gccontent);        
 //	        pyrpurcontent.setSelected(opts.pyrpurcontent);
 //	        cpg.setSelected(opts.cpg);
@@ -480,9 +480,11 @@ public class WarpOptionsPane
 	                position.setText(opts.chrom + ":" + opts.start + "-" + opts.stop);
 	            }
 	        }       
-	        chipSeqSelect.addToSelected(opts.chipseqExpts);
-	        pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
-	        chiaPetArcSelect.addToSelected(opts.chiapetArcs);
+	        if (!isLocal) {
+		        chipSeqSelect.addToSelected(opts.chipseqExpts);
+		        pairedChipSeqSelect.addToSelected(opts.pairedChipseqExpts);
+		        chiaPetArcSelect.addToSelected(opts.chiapetArcs);
+	        }
 //	        chipSeqAnalysisSelect.addToSelected(opts.chipseqAnalyses);
 //	        bindingSelect.addToSelected(opts.bindingScans);
 //	        exprSelect.addToSelected(opts.exprExperiments);
@@ -643,9 +645,11 @@ public class WarpOptionsPane
 //        System.err.println("UPDATING GENOME FOR EXPERIMENT SELECTION " + g);
 
 //        exptSelect.setGenome(lg);
-        chipSeqSelect.setGenome(lg, WarpOptions.readdb);
-        pairedChipSeqSelect.setGenome(lg, WarpOptions.readdb);
-        chiaPetArcSelect.setGenome(lg, WarpOptions.readdb);
+        if (!isLocal) {
+	        chipSeqSelect.setGenome(lg, WarpOptions.readdb);
+	        pairedChipSeqSelect.setGenome(lg, WarpOptions.readdb);
+	        chiaPetArcSelect.setGenome(lg, WarpOptions.readdb);
+        }
 //        chipSeqAnalysisSelect.setGenome(lg);
 //        motifPanel.setGenome(lg);
 //        motifScanPanel.setGenome(lg);

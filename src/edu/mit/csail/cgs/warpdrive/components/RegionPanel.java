@@ -941,47 +941,15 @@ public class RegionPanel extends JPanel
 		String trimmed = input.trim().replaceAll("\\s+", "");
 		Region r = Region.fromString(genome, input);
 		if (r == null) {
-			trimmed = trimmed.toLowerCase();
-			if (WarpOptions.geneTable.containsKey(trimmed)) {
-				return WarpOptions.geneTable.get(trimmed).get(0);
+			String[] f = input.split("\t");
+			// BED format is end exclusive
+			if (f.length>=3)
+				r = new Region(genome, f[0].replace("chr", "").replace("Chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2])-1);
+			if (r==null) {
+				trimmed = trimmed.toLowerCase();
+				if (WarpOptions.geneTable.containsKey(trimmed)) 
+					return WarpOptions.geneTable.get(trimmed).get(0);
 			}
-			// try {
-			// int upstream = 0;
-			// int downstream = 0;
-			// Pattern pattern = Pattern.compile("(.*)\\+(\\d+)\\-(\\d+)$");
-			// Matcher matcher = pattern.matcher(trimmed);
-			// if (matcher.matches()) {
-			// trimmed = matcher.group(1);
-			// upstream = Integer.parseInt(matcher.group(2));
-			// downstream = Integer.parseInt(matcher.group(3));
-			// }
-			// RefGeneGenerator generator = new RefGeneGenerator(genome);
-			// Iterator<Gene> iter = generator.byName(trimmed);
-			// if (iter.hasNext()) {
-			// Gene gene = iter.next();
-			// return gene;
-			// }
-			// RegionExpanderFactoryLoader<Gene> gfLoader = new
-			// RegionExpanderFactoryLoader<Gene>("gene");
-			// for(String type : gfLoader.getTypes(genome)) {
-			// RegionExpanderFactory<Gene> genefactory = gfLoader.getFactory(genome,
-			// type);
-			// Expander<Region,Gene> expander = genefactory.getExpander(genome);
-			// if (expander instanceof RefGeneGenerator) {
-			// iter = ((RefGeneGenerator)expander).byName(trimmed);
-			// if (iter.hasNext()) {
-			// Gene gene = iter.next();
-			// return new Region(gene.getGenome(),
-			// gene.getChrom(),
-			// gene.getStart() - (gene.getStrand() == '+' ? upstream : downstream),
-			// gene.getEnd() + (gene.getStrand() == '+' ? downstream : upstream));
-			// }
-			// }
-			// }
-			// } catch (DatabaseException ex) {
-			// // this means we couldn't get a ref gene table for this species
-			// ex.printStackTrace();
-			// }
 		}
 		return r;
 	}
