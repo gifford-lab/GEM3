@@ -434,6 +434,7 @@ public class RegionAnnotator {
 
 	}
 	
+	// input format: geneName<Tab>cgsPoint
 	private void compute_enhancer_distances(){
 		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "g2e", null));
 		String prev = "";
@@ -445,11 +446,11 @@ public class RegionAnnotator {
 			}
 			else{	// different gene, if prev only 1 region, ignore, if more regions, compute distance
 				if (ps.size()>1){		// more than 1 enhancer
-					ArrayList<Integer> distances = new ArrayList<Integer>();
+//					ArrayList<Integer> distances = new ArrayList<Integer>();
 					for (int i=0;i<ps.size();i++)
 						for (int j=i+1;j<ps.size();j++){
 							int d = ps.get(i).distance(ps.get(j));
-							distances.add(d);
+//							distances.add(d);
 							System.out.println(d);
 						}
 				}
@@ -458,12 +459,13 @@ public class RegionAnnotator {
 				ps.add(Point.fromString(genome, f[1]));
 			}
 		}
+		// finish up
 		if (ps.size()>1){		// more than 1 enhancer
-			ArrayList<Integer> distances = new ArrayList<Integer>();
+//			ArrayList<Integer> distances = new ArrayList<Integer>();
 			for (int i=0;i<ps.size();i++)
 				for (int j=i+1;j<ps.size();j++){
 					int d = ps.get(i).distance(ps.get(j));
-					distances.add(d);
+//					distances.add(d);
 					System.out.println(d);
 				}
 		}

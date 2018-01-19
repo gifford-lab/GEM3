@@ -340,6 +340,7 @@ public class RegionPanel extends JPanel
 		if (opts.chiapetExpts.size() > 0) {
 			try {
 				for (String k : opts.chiapetExpts.keySet()) {
+					String name = opts.chiapetExpts.get(k);
 					SortedMap<Pair<Point, Point>, Float> interactions = new TreeMap<Pair<Point, Point>, Float>(
 							new Comparator<Pair<Point, Point>>() {
 
@@ -366,7 +367,7 @@ public class RegionPanel extends JPanel
 								}
 
 							});
-					System.err.println("parsing " + k);
+					System.err.println(String.format("parsing %s with name %s.", k, name));
 					long tic = System.currentTimeMillis();
 					BufferedReader r = new BufferedReader(new FileReader(k));
 					String s;
@@ -408,7 +409,7 @@ public class RegionPanel extends JPanel
 					addModel(m);
 					Thread t = new Thread((Runnable) m);
 					t.start();
-					p.setLabel(k);
+					p.setLabel(name);
 					p.addEventListener(this);
 					addPainter(p);
 					addModelToPaintable(p, m);
@@ -934,7 +935,7 @@ public class RegionPanel extends JPanel
 
 	/*
 	 * this parses input from the region/location text area and turns it into a
-	 * region. If the text is parseable as a Region, this is easy. Otherwise, try to
+	 * region. If the text is not parseable as a cgsRegion or bedRegion, try to
 	 * turn it into a gene and use that.
 	 */
 	public static Region regionFromString(Genome genome, String input) {
