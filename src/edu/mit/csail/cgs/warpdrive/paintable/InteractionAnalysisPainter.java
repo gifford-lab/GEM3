@@ -15,9 +15,10 @@ import edu.mit.csail.cgs.viz.DynamicAttribute;
 import edu.mit.csail.cgs.warpdrive.model.InteractionAnalysisModel;
 
 public class InteractionAnalysisPainter extends RegionPaintable {
-
+	// arcColor is semi-transparent
 	static final private Color[] arcColors = {new Color(0, 0, 255, 127), new Color(0, 255, 255, 127), 
 			new Color(0, 255, 128, 127), new Color(255, 128, 0, 127), new Color(255, 0, 0, 127)};
+	// textColor is solid
 	static final private Color[] textColors = {new Color(0, 0, 255, 255), new Color(0, 255, 255, 255), 
 			new Color(0, 255, 128, 255), new Color(255, 128, 0, 255), new Color(255, 0, 0, 255)};
 	static final private Color lightGrey = new Color(0.4f, 0.4f, 0.4f, 0.2f);
@@ -91,7 +92,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 				continue;
 			if (!leftPoint.getChrom().equals(chrom))
 				continue;
-			float count = interactions.get(pair);
+			int count = new Float (interactions.get(pair)).intValue();
 			if (count<cutoff && count!=1)
 				continue;
 			float curvewidth = Math.min(30, (float)Math.sqrt((double) count));
@@ -101,7 +102,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			if (leftCoord<regionStart){
 				// if out of range, record the position that is in range
 				if (!leftOutRanges.containsKey(rightPoint))
-					leftOutRanges.put(rightPoint, 1);
+					leftOutRanges.put(rightPoint, count);
 				else
 					leftOutRanges.put(rightPoint, leftOutRanges.get(rightPoint)+1);
 				if (!toShowOutOfRangeIntereactions)
@@ -110,7 +111,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			if (rightCoord>regionEnd){
 				// if out of range, record the position that is in range
 				if (!rightOutRanges.containsKey(leftPoint))
-					rightOutRanges.put(leftPoint, 1);
+					rightOutRanges.put(leftPoint, count);
 				else
 					rightOutRanges.put(leftPoint, rightOutRanges.get(leftPoint)+1);
 				if (!toShowOutOfRangeIntereactions)
@@ -160,15 +161,23 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 			g.setColor(Color.RED);
 			g.drawString("<", x1, y1 + (int)(fontSize*2.5));
 			for (Point p: leftOutRanges.keySet()){
-				g.drawString(leftOutRanges.get(p)+".", 
-						getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2), 
+				int colorIdx = Math.round(leftOutRanges.get(p)/10);
+				if (colorIdx > textColors.length-1)
+					colorIdx = textColors.length-1;
+				g.setColor(textColors[colorIdx]);
+				g.drawString(leftOutRanges.get(p)+"", 
+						getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2)-fontSize/2, 
 						y1 + (int)(fontSize*2.5));
 			}
 			g.setColor(Color.BLACK);
-			g.drawString(">", x2-fontSize, y1 + fontSize*4);
+			g.drawString(">", x2-fontSize/2, y1 + fontSize*4);
 			for (Point p: rightOutRanges.keySet()){
-				g.drawString(rightOutRanges.get(p)+".", 
-						getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2),
+				int colorIdx = Math.round(rightOutRanges.get(p)/10);
+				if (colorIdx > textColors.length-1)
+					colorIdx = textColors.length-1;
+				g.setColor(textColors[colorIdx]);
+				g.drawString(rightOutRanges.get(p)+"", 
+						getXPosExt(p.getLocation(), regionStart, regionEnd, x1, x2)-fontSize/2,
 						y1 + fontSize*4);
 			}		
 		}

@@ -504,7 +504,7 @@ public class WarpOptions {
                 if (args[i].equals("--genes")) {
                     opts.genes.add(args[++i]);;
                 }            
-                if (args[i].equals("--chiapet")) {
+                if (args[i].equals("--chiapet")) {	// sprout tab
                 	String pieces[] = args[++i].split(";");
                     if (pieces.length == 1) {
                         opts.chiapetExpts.put(pieces[0],pieces[0]);
@@ -526,7 +526,7 @@ public class WarpOptions {
                         System.err.println("Couldn't parse --chipseq " + args[i]);
                     }
                 }
-                if (args[i].equals("--pairedchipseq")) {
+                if (args[i].equals("--pairedchipseq")) {	// paired-end as lines
                     String pieces[] = args[++i].split(";");
                     if (pieces.length == 2) {
                         opts.pairedChipseqExpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
@@ -536,7 +536,7 @@ public class WarpOptions {
                         System.err.println("Couldn't parse --pairedchipseq " + args[i]);
                     }
                 }
-                if (args[i].equals("--chiapetarc")) {
+                if (args[i].equals("--chiapetarc")) {		// chia-pet raw data as arcs
                     String pieces[] = args[++i].split(";");
                     if (pieces.length == 2) {
                         opts.chiapetArcs.add(new ChipSeqLocator(pieces[0], pieces[1]));
@@ -546,6 +546,15 @@ public class WarpOptions {
                         System.err.println("Couldn't parse --chiapetarc " + args[i]);
                     }
                 }
+                if (args[i].equals("--fileTrack")) {		// File track tab, cgsRegions, BED regions, or gene symbols
+                    String pieces[] = args[++i].split(";");
+                    if (pieces.length == 1) {
+                        opts.regionTracks.put(pieces[0],pieces[0]);
+                    } else {
+                        opts.regionTracks.put(pieces[0],pieces[1]);
+                    }
+                }
+                
 //                if (args[i].equals("--chipseqanalysis")) {
 //                    String pieces[] = args[++i].split(";");
 //                    if (pieces.length == 2) {
@@ -637,14 +646,6 @@ public class WarpOptions {
                         opts.regexes.put("regex" + i, pieces[0]);
                     } else if (pieces.length >= 2) {
                         opts.regexes.put(pieces[1],pieces[0]);
-                    }
-                }
-                if (args[i].equals("--fileTrack")) {
-                    String pieces[] = args[++i].split(";");
-                    if (pieces.length == 1) {
-                        opts.regionTracks.put(pieces[0],pieces[0]);
-                    } else {
-                        opts.regionTracks.put(pieces[0],pieces[1]);
                     }
                 }
             }

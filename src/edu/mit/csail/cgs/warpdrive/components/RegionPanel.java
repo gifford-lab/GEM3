@@ -419,6 +419,69 @@ public class RegionPanel extends JPanel
 				e.printStackTrace();
 			}
 		}
+		if (opts.chiapetArcs.size() > 0) {
+			try {
+				ChipSeqLoader loader = new ChipSeqLoader();
+				for (int i = 0; i < opts.chiapetArcs.size(); i++) {
+
+					Collection<ChipSeqAlignment> alignments = loader.loadAlignment_noOracle(opts.chiapetArcs.get(i),
+							genome, WarpOptions.readdb);
+					InteractionArcModel m = new InteractionArcModel(alignments);
+					InteractionArcPainter p = new InteractionArcPainter(m);
+					addModel(m);
+					Thread t = new Thread((Runnable) m);
+					t.start();
+					p.setLabel("Interaction " + opts.chiapetArcs.get(i).toString());
+
+					p.addEventListener(this);
+					addPainter(p);
+					addModelToPaintable(p, m);
+				}
+				loader.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		RegionExpanderFactoryLoader<Gene> gfLoader;
+		RegionExpanderFactoryLoader<NamedTypedRegion> annotLoader;
+		gfLoader = new RegionExpanderFactoryLoader<Gene>("gene");
+		annotLoader = new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
+
+		if (opts.genes.size() > 0 && egp == null) {
+			GeneModel geneModel = new GeneModel();
+
+			for (int i = 0; i < opts.genes.size(); i++) {
+				RegionExpanderFactory<Gene> genefactory = gfLoader.getFactory(genome, opts.genes.get(i).toString());
+				Expander<Region, Gene> expander = genefactory.getExpander(genome);
+				geneModel.addExpander(expander);
+			}
+
+			addModel(geneModel);
+			Thread t = new Thread(geneModel);
+			t.start();
+
+			egp = new ExonGenePainter(geneModel);
+			egp.setLabel("genes");
+			egp.addEventListener(this);
+			addPainter(egp);
+			addModelToPaintable(egp, geneModel);
+		}
+
+		if (WarpOptions.geneTable != null) { // add gene annotaton track
+			GeneModel geneModel = new GeneModel();
+			RefGeneGenerator<Region> refgenes = new RefGeneGenerator<Region>(WarpOptions.geneTable);
+			geneModel.addExpander(refgenes);
+
+			addModel(geneModel);
+			Thread t = new Thread(geneModel);
+			t.start();
+
+			egp = new ExonGenePainter(geneModel);
+			egp.setLabel("genes");
+			egp.addEventListener(this);
+			addPainter(egp);
+			addModelToPaintable(egp, geneModel);
+		}
 
 		if (opts.chipseqExpts.size() > 0) {
 			try {
@@ -463,29 +526,6 @@ public class RegionPanel extends JPanel
 					Thread t = new Thread((Runnable) m);
 					t.start();
 					p.setLabel("Paired " + opts.pairedChipseqExpts.get(i).toString());
-
-					p.addEventListener(this);
-					addPainter(p);
-					addModelToPaintable(p, m);
-				}
-				loader.close();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		if (opts.chiapetArcs.size() > 0) {
-			try {
-				ChipSeqLoader loader = new ChipSeqLoader();
-				for (int i = 0; i < opts.chiapetArcs.size(); i++) {
-
-					Collection<ChipSeqAlignment> alignments = loader.loadAlignment_noOracle(opts.chiapetArcs.get(i),
-							genome, WarpOptions.readdb);
-					InteractionArcModel m = new InteractionArcModel(alignments);
-					InteractionArcPainter p = new InteractionArcPainter(m);
-					addModel(m);
-					Thread t = new Thread((Runnable) m);
-					t.start();
-					p.setLabel("Interaction " + opts.chiapetArcs.get(i).toString());
 
 					p.addEventListener(this);
 					addPainter(p);
@@ -550,46 +590,6 @@ public class RegionPanel extends JPanel
 			}
 		}
 
-		RegionExpanderFactoryLoader<Gene> gfLoader;
-		RegionExpanderFactoryLoader<NamedTypedRegion> annotLoader;
-		gfLoader = new RegionExpanderFactoryLoader<Gene>("gene");
-		annotLoader = new RegionExpanderFactoryLoader<NamedTypedRegion>("annots");
-
-		if (opts.genes.size() > 0 && egp == null) {
-			GeneModel geneModel = new GeneModel();
-
-			for (int i = 0; i < opts.genes.size(); i++) {
-				RegionExpanderFactory<Gene> genefactory = gfLoader.getFactory(genome, opts.genes.get(i).toString());
-				Expander<Region, Gene> expander = genefactory.getExpander(genome);
-				geneModel.addExpander(expander);
-			}
-
-			addModel(geneModel);
-			Thread t = new Thread(geneModel);
-			t.start();
-
-			egp = new ExonGenePainter(geneModel);
-			egp.setLabel("genes");
-			egp.addEventListener(this);
-			addPainter(egp);
-			addModelToPaintable(egp, geneModel);
-		}
-
-		if (WarpOptions.geneTable != null) { // add gene annotaton track
-			GeneModel geneModel = new GeneModel();
-			RefGeneGenerator<Region> refgenes = new RefGeneGenerator<Region>(WarpOptions.geneTable);
-			geneModel.addExpander(refgenes);
-
-			addModel(geneModel);
-			Thread t = new Thread(geneModel);
-			t.start();
-
-			egp = new ExonGenePainter(geneModel);
-			egp.setLabel("genes");
-			egp.addEventListener(this);
-			addPainter(egp);
-			addModelToPaintable(egp, geneModel);
-		}
 
 		for (int i = 0; i < opts.otherannots.size(); i++) {
 
