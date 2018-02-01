@@ -1259,8 +1259,8 @@ public class CID {
 //			System.out.println("Total # reads = " + reads.size());
 			for (StrandedPoint p: reads) {
 				String chr = p.getChrom();
-				if (!chr.equals("13"))
-					continue;
+//				if (!chr.equals("13"))
+//					continue;
 				if (chrom.equals(chr)) {
 					if (p.getLocation()==coord) {
 						if(p.getStrand()=='+')
