@@ -10,8 +10,8 @@ public class StrandedPoint extends Point implements Stranded {
 	
 	private char strand;
 	
-	public int compareToStranded(StrandedPoint p) {
-		int compare = this.compareTo(p);
+	public int compareTo(StrandedPoint p) {
+		int compare = super.compareTo(p);
 		if (compare==0) {
 			return this.strand - p.strand;
 		} else {

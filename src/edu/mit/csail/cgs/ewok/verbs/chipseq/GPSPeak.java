@@ -80,6 +80,10 @@ public class GPSPeak extends StrandedPoint{
 		this.kmerStrand = kmerStrand;
 		this.boundSequence = boundSequence;
 	}
+	public GPSPeak(Genome g, String chr, int pos, double ipStrength){
+		super(g, chr.replaceFirst("chr", ""), pos, ' ');
+		this.strength = ipStrength;
+	}
 	public boolean isJointEvent() {
 		return jointEvent;
 	}

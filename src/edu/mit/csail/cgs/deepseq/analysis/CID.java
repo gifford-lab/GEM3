@@ -1,5 +1,6 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +17,12 @@ import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
 import edu.mit.csail.cgs.datasets.general.StrandedPoint;
 import edu.mit.csail.cgs.datasets.species.Genome;
+import edu.mit.csail.cgs.deepseq.DeepSeqExpt;
+import edu.mit.csail.cgs.deepseq.discovery.KPPMixture;
+import edu.mit.csail.cgs.deepseq.features.ComponentFeature;
+import edu.mit.csail.cgs.deepseq.features.Feature;
 import edu.mit.csail.cgs.deepseq.utilities.CommonUtils;
+import edu.mit.csail.cgs.deepseq.utilities.ReadCache;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSParser;
 import edu.mit.csail.cgs.ewok.verbs.chipseq.GPSPeak;
 import edu.mit.csail.cgs.tools.utils.Args;
@@ -916,7 +922,6 @@ public class CID {
 	// find interactions by 2D density clustering
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
-		long tic = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "Result");
 
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
@@ -928,13 +933,14 @@ public class CID {
 		// the left read is required to be lower than the right read; if not, flip 
 
 		// sort by each end so that we can search to find matches or overlaps
-		System.out.println("Running CID on "+Args.parseString(args, "out", "Result"));
-		System.out.println("\nLoading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
+		String rootName = Args.parseString(args, "out", "CID");
+		System.out.println("Running CID on "+rootName);
+		System.out.println("\nLoading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic0));
 		
-		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
-		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
-		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
-		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
+//		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
+//		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
+//		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
+//		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
 
 		ArrayList<String> read_pair_lines = CommonUtils.readTextFile(Args.parseString(args, "data", null));
 		String[] f1 = read_pair_lines.get(0).split("\t");
@@ -942,7 +948,7 @@ public class CID {
 		if (isBEDPE){
 			System.out.println("\nDetected input data to be BEDPE format!");
 			if (f1.length<10){
-				System.err.println("The columns 9 and 10 should be the strand information of the two read ends.");
+				System.err.println("Wrong BEDPE format. The columns 9 and 10 should be the strand information of the two read ends.");
 				System.exit(-1);
 			}
 		}
@@ -951,7 +957,8 @@ public class CID {
 		// inter-chrom PETs: keep if considering inter-chrom interactions
 		// intra-chrom short PETs: i.e. self-ligation, keep when using 1d reads to estimate anchor points
 		// single-end-reads: i.e. unpaired, keep only if use_1_end_reads flag is true, but may be useful when using 1d reads to estimate anchor points
-		ArrayList<Point> reads = new ArrayList<Point>(); 
+		ArrayList<StrandedPoint> reads = new ArrayList<StrandedPoint>(); 
+		
 		// all PETs sorted by the low end
 		ArrayList<ReadPair> low = new ArrayList<ReadPair>(); 
 		ArrayList<ReadPair> high = new ArrayList<ReadPair>(); // sort high end
@@ -969,15 +976,17 @@ public class CID {
 					continue;
 				
 				char strand1 = f[8].charAt(0);
-				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
+//				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
+				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), strand1=='+'?Integer.parseInt(f[1]):Integer.parseInt(f[2]), strand1);
 				char strand2 = f[9].charAt(0);
-				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
+//				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
+				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), strand1=='+'?Integer.parseInt(f[4]):Integer.parseInt(f[5]), strand2);
 				// if not both ends are aligned properly, skip, 
 				// but if one of the read is mapped, add the read to the single-end reads object 
 				if (r1.getChrom().equals("*")){
 					// add read2 as single-end if mapped
 					if (!r2.getChrom().equals("*"))	
-						reads.add(r1);
+						reads.add(r2);
 					continue;
 				}
 				if (r2.getChrom().equals("*")){
@@ -987,11 +996,13 @@ public class CID {
 					continue;
 				}
 			}
-			// TODO: change next line if predicting cross-chrom interactions
+			
+			// TODO: change next line if predicting inter-chrom interactions
 			// r1 and r2 should be on the same chromosome for PETs
 			if (!r1.getChrom().equals(r2.getChrom())) 
 				continue;
-			// TODO: should we treat them as single-end reads even if they are on different chromosomes???
+			
+			// TODO: should we treat inter-chrom reads as single-end reads???
 			reads.add(r1);
 			reads.add(r2);
 			
@@ -1048,8 +1059,8 @@ public class CID {
 		reads.trimToSize();
 		Collections.sort(reads);
 
-		System.out.println("\nLoaded total single reads = " + (reads.size() / 2) + ", filtered PETs =" + highEnds.size()
-		+ " : " + CommonUtils.timeElapsed(tic));
+		System.out.println("\nLoaded total single reads = " + reads.size() + ", filtered PETs =" + highEnds.size()
+		+ " : " + CommonUtils.timeElapsed(tic0));
 
 		// a hack to print out PETs that support a list of BEDPE-format loops
 		String loop_file = Args.parseString(args, "loops", null);
@@ -1108,68 +1119,68 @@ public class CID {
 			System.exit(0);
 		}
 
-		// 	to get only a subset of data for testing
-		String test_loops = Args.parseString(args, "subset_loops", null);
-		if (test_loops != null) {
-			ArrayList<Point> reads2 = new ArrayList<Point>(); 
-			// all PET sorted by the low end
-			ArrayList<ReadPair> low2 = new ArrayList<ReadPair>(); 
-
-			ArrayList<String> lines = CommonUtils.readTextFile(test_loops);
-			for (String anchorString : lines) {
-				// System.out.println(anchorString);
-				String[] f = anchorString.split("\t");
-				Region region1 = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]),
-						Integer.parseInt(f[2]));
-				Region region2 = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]),
-						Integer.parseInt(f[5]));
-				if (region1.overlaps(region2)){		// if overlap, merge
-					region1 = new Region(genome, region1.getChrom(), region1.getStart(), region2.getEnd());
-					region2 = region1;
-				}
-				ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region1);
-				for (int id : idx) {
-					ReadPair rp = low.get(id);
-					if (region2.contains(rp.r2)){
-						low2.add(rp);
-					}
-				}
-				ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(reads, region1);
-				for (int id : idx2) 
-					reads2.add(reads.get(id));
-				idx2 = CommonUtils.getPointsIdxWithinWindow(reads, region2);
-				for (int id : idx2) 
-					reads2.add(reads.get(id));
-			}
-			
-			// re-set the data structures and sort
-			low.clear();
-			low.addAll(low2);low2 = null;
-			low.trimToSize();
-			high.clear();
-			high.addAll(low);
-			high.trimToSize();
-			Collections.sort(low);
-			Collections.sort(high, new Comparator<ReadPair>() {		// sort by high end read2
-				public int compare(ReadPair o1, ReadPair o2) {
-					return o1.compareRead2(o2);
-				}
-			});
-
-			lowEnds.clear();
-			for (ReadPair r : low)
-				lowEnds.add(r.r1);
-			lowEnds.trimToSize();
-			highEnds.clear();
-			for (ReadPair r : high)
-				highEnds.add(r.r2);
-			highEnds.trimToSize();
-
-			reads.clear();
-			reads.addAll(reads2);
-			reads.trimToSize();
-			Collections.sort(reads);	
-		}	// get subset of data
+//		// 	to get only a subset of data for testing
+//		String test_loops = Args.parseString(args, "subset_loops", null);
+//		if (test_loops != null) {
+//			ArrayList<StrandedPoint> reads2 = new ArrayList<StrandedPoint>(); 
+//			// all PET sorted by the low end
+//			ArrayList<ReadPair> low2 = new ArrayList<ReadPair>(); 
+//
+//			ArrayList<String> lines = CommonUtils.readTextFile(test_loops);
+//			for (String anchorString : lines) {
+//				// System.out.println(anchorString);
+//				String[] f = anchorString.split("\t");
+//				Region region1 = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]),
+//						Integer.parseInt(f[2]));
+//				Region region2 = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]),
+//						Integer.parseInt(f[5]));
+//				if (region1.overlaps(region2)){		// if overlap, merge
+//					region1 = new Region(genome, region1.getChrom(), region1.getStart(), region2.getEnd());
+//					region2 = region1;
+//				}
+//				ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region1);
+//				for (int id : idx) {
+//					ReadPair rp = low.get(id);
+//					if (region2.contains(rp.r2)){
+//						low2.add(rp);
+//					}
+//				}
+//				ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(reads, region1);
+//				for (int id : idx2) 
+//					reads2.add(reads.get(id));
+//				idx2 = CommonUtils.getPointsIdxWithinWindow(reads, region2);
+//				for (int id : idx2) 
+//					reads2.add(reads.get(id));
+//			}
+//			
+//			// re-set the data structures and sort
+//			low.clear();
+//			low.addAll(low2);low2 = null;
+//			low.trimToSize();
+//			high.clear();
+//			high.addAll(low);
+//			high.trimToSize();
+//			Collections.sort(low);
+//			Collections.sort(high, new Comparator<ReadPair>() {		// sort by high end read2
+//				public int compare(ReadPair o1, ReadPair o2) {
+//					return o1.compareRead2(o2);
+//				}
+//			});
+//
+//			lowEnds.clear();
+//			for (ReadPair r : low)
+//				lowEnds.add(r.r1);
+//			lowEnds.trimToSize();
+//			highEnds.clear();
+//			for (ReadPair r : high)
+//				highEnds.add(r.r2);
+//			highEnds.trimToSize();
+//
+//			reads.clear();
+//			reads.addAll(reads2);
+//			reads.trimToSize();
+//			Collections.sort(reads);	
+//		}	// get subset of data
 		
 		if (low.isEmpty()){
 			System.err.println("\nNo read pair was loaded. Exit here!\n");
@@ -1228,6 +1239,137 @@ public class CID {
 
 //		System.out.println("\nAnalyzed strand-orientation of PETs: " + CommonUtils.timeElapsed(tic0));
 
+		/*************************************************************************
+		 *  run GPS to calling peaks (for improving spatial accuracy)
+		 *************************************************************************/
+		List<Feature> peaks = null;
+		if (flags.contains("gps")) {
+			System.out.println("\nRunning GPS on single-end reads: " + CommonUtils.timeElapsed(tic0));
+			// prepare single end read data
+			ArrayList<Pair<ReadCache,ReadCache>> expts = new ArrayList<Pair<ReadCache,ReadCache>>();
+			ReadCache ipCache = new ReadCache(genome, "IP", null, null);
+			int coord = reads.get(0).getLocation();
+			int plus =0;
+			int minus =0;
+			String chrom = reads.get(0).getChrom();
+			ArrayList<Integer> coordPlus = new ArrayList<Integer>();
+			ArrayList<Integer> coordMinus = new ArrayList<Integer>();
+			ArrayList<Float> countPlus = new ArrayList<Float>();
+			ArrayList<Float> countMinus = new ArrayList<Float>();
+//			System.out.println("Total # reads = " + reads.size());
+			for (StrandedPoint p: reads) {
+				String chr = p.getChrom();
+				if (!chr.equals("13"))
+					continue;
+				if (chrom.equals(chr)) {
+					if (p.getLocation()==coord) {
+						if(p.getStrand()=='+')
+							plus++;
+						else
+							minus++;
+					}
+					else {
+						if (plus>0) {
+							coordPlus.add(coord);
+							countPlus.add((float)plus);
+						}
+						if (minus>0) {
+							coordMinus.add(coord);
+							countMinus.add((float)minus);
+						}	
+						coord = p.getLocation();
+						plus = 0;
+						minus = 0;
+						if(p.getStrand()=='+')
+							plus++;
+						else
+							minus++;
+					}
+				}
+				else {	// a new chrom
+					// finished previous chrom and init for the new chrom
+					if (plus>0) {
+						coordPlus.add(coord);
+						countPlus.add((float)plus);
+					}
+					if (minus>0) {
+						coordMinus.add(coord);
+						countMinus.add((float)minus);
+					}
+					coord = p.getLocation();
+					plus = 0;
+					minus = 0;
+					if(p.getStrand()=='+')
+						plus++;
+					else
+						minus++;
+					ipCache.addHits(chrom, '+', coordPlus, countPlus);
+					ipCache.addHits(chrom, '-', coordMinus, countMinus);
+					coordPlus = new ArrayList<Integer>();
+					coordMinus = new ArrayList<Integer>();
+					countPlus = new ArrayList<Float>();
+					countMinus = new ArrayList<Float>();
+					chrom = chr;
+				}
+			}
+			// finish every thing
+			if (plus>0) {
+				coordPlus.add(coord);
+				countPlus.add((float)plus);
+			}
+			if (minus>0) {
+				coordMinus.add(coord);
+				countMinus.add((float)minus);
+			}
+			ipCache.addHits(chrom, '+', coordPlus, countPlus);
+			ipCache.addHits(chrom, '-', coordMinus, countMinus);
+
+			ipCache.populateArrays(true);
+//			ipCache.displayStats();
+			
+			expts.add(new Pair<ReadCache,ReadCache>(ipCache, null));
+			
+			KPPMixture mixture = new KPPMixture(genome, expts, args);
+	        int round = 0;
+			mixture.setOutName(rootName+"_"+round);
+	        peaks = mixture.execute();
+	        System.out.println("Called " + peaks.size() + " peaks.");
+	        mixture.printFeatures(round);
+	        mixture.printFilteredFeatures(round);
+            mixture.printInsignificantFeatures(round);
+	        mixture.releaseMemory();
+	        round++;
+	        boolean not_update_model = false;
+	        int minLeft = Args.parseInteger(args,"d_l", 600);
+	        int minRight = Args.parseInteger(args,"d_r", 500);
+	        boolean constant_model_range = Args.parseFlags(args).contains("constant_model_range");
+	        if (!not_update_model){
+		        if (!constant_model_range){
+		            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), rootName+"_"+round);
+		        }
+		        else
+		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), rootName+"_"+round);
+	        }
+			mixture.setOutName(rootName+"_"+round);
+	        peaks = mixture.execute();
+	        peaks.addAll(mixture.getInsignificantFeatures());
+	        mixture.printFeatures(round);
+	        mixture.printFilteredFeatures(round);
+            mixture.printInsignificantFeatures(round);
+	        mixture.releaseMemory();
+	        round++;
+	        if (!not_update_model){
+		        if (!constant_model_range){
+		            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
+		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), rootName+"_"+round);
+		        }
+		        else
+		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), rootName+"_"+round);
+	        }
+	        System.out.println("\nDone running GPS: " + CommonUtils.timeElapsed(tic0));
+		}	// if running GPS
+		
 		
 		/***********************************************************************
 		 * One dimension read segmentation (similar to GEM code)
@@ -1338,15 +1480,16 @@ public class CID {
 			CommonUtils.writeFile(String.format("%s.cluster.density.txt", outName), sbDensityDetails.toString());
 			System.out.println(String.format("\nClustering results have been written to %s.cluster.density.txt", outName));
 			System.exit(0);
-		}
+		}		
+
 		
 		/***********************************************************
 		 * find dense PET cluster for each 1D clustered region
 		 ***********************************************************/
 		ArrayList<Interaction> interactions = new ArrayList<Interaction>();
 		HashSet<ReadPair> usedPETs = new HashSet<ReadPair>();
-		tic = System.currentTimeMillis();
-
+		ArrayList<ReadPairCluster> clustersCalled = new ArrayList<ReadPairCluster>();
+		
 		for (int j = 0; j < rs0.size(); j++) { // for all regions
 			Region region = rs0.get(j);
 //			if (region.contains(new Point(region.getGenome(), "19", 1082441)))
@@ -1499,147 +1642,368 @@ public class CID {
 					}
 					toRemoveClusters = null;
 				}
-				
-				// refresh the PETs again because some PET1 might not be
-				// included but are within the cluster_merge_dist range
-				// also expand the anchor for half of the cluster_merge_dist
-				for (ReadPairCluster cc : rpcs) {
-					ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion);
-					cc.pets.clear();
-					for (int i : idx2) {
-						ReadPair rp = low.get(i);
-						if (cc.rightRegion.contains(rp.r2))
-							cc.addReadPair(rp);
-					}
-					cc.update(false);
-				}
-				
-				// finalize PET clusters
-				for (ReadPairCluster cc : rpcs) {
-					ArrayList<ReadPair> pets = cc.pets;
-					if (pets.size() < min_pet_count)
-						continue;
-					// skip PET2 that have anchor wider than dc, or 1D read count is also 2 (not significant by MICC)
-					if (pets.size()==2){
-						if (cc.r1width>dc && cc.r2width>dc)	
-							continue;
-						if (flags.contains("strict")){		// more stringent calls
-							int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(dc, dc)).size();
-							int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(dc, dc)).size();
-							if (l==2 || r==2 || (l<=4 && r<=4))
-								continue;
-						}
-					}
-
-					// mark all PETs in the cluster as used (PET2+)
-					// to get real PET1 (no PET1 from the m-p adjustment)
-					usedPETs.addAll(pets);	
-					
-					int totalCount = pets.size();
-					int minusPlusCount = 0;
-					int adjustedCount = totalCount;
-					ReadPairCluster rpc = cc;
-					
-//					// new PET cluster with adjustment
-//					ReadPairCluster rpc = new ReadPairCluster(); 
-//					if (flags.contains("mp_adjust")){
-//						// count minus-plus PETs to adjust the PET counts
-//						ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
-//						for (ReadPair rp : pets)
-//							if (rp.r1.getStrand() == '-' && rp.r2.getStrand() == '+')
-//								mpRPs.add(rp);
-//						minusPlusCount = mpRPs.size();
-//						pets.removeAll(mpRPs);
-//						adjustedCount = -1;
-//						Collections.sort(mpRPs);		// sort by low end read1: default
-//						if (pets.isEmpty()) { //  with only minus-plus PETs
-//							int dist = cc.span;
-//							if (dist >= maxEdge)
-//								adjustedCount = minusPlusCount;
-//							else {
-//								int index = Collections.binarySearch(binEdges, dist);
-//								if (index < 0) // if key not found
-//									index = -(index + 1);
-//								adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
-//							}
-//							// add the adjusted m-p PETs in the middle
-//							int midIndexMP = mpRPs.size() / 2 - adjustedCount /2;
-//							int endIndex = midIndexMP + adjustedCount;
-//							for (int k = midIndexMP; k < endIndex; k++)
-//								rpc.addReadPair(mpRPs.get(k));
-//							rpc.update();
-//						} else {
-//							for (ReadPair rp : pets)
-//								rpc.addReadPair(rp);
-//							rpc.update();
-//							int dist = rpc.span;
-//							if (dist >= maxEdge)
-//								adjustedCount = totalCount;
-//							else {
-//								int index = Collections.binarySearch(binEdges, dist);
-//								if (index < 0) // if key not found
-//									index = -(index + 1);
-//								adjustedCount = totalCount - minusPlusCount
-//										+ (int) (minusPlusCount * mpNonSelfFraction.get(index));
-//							}
-//							// add the adjusted m-p PETs in the middle
-//							int extra = adjustedCount - (totalCount - minusPlusCount);
-//							int midIndexMP = mpRPs.size() / 2 - extra /2;
-//							int endIndex = midIndexMP + extra;
-//							for (int k = midIndexMP; k < endIndex; k++)
-//								rpc.addReadPair(mpRPs.get(k));
-//							rpc.update();
-//						}
-//						if (adjustedCount < min)
-//							continue;
-//					}
-//					else	// not adjustment, rpc is the cluster cc
-//						rpc = cc;
-										
-					Interaction it = new Interaction();
-					interactions.add(it);
-					it.count = totalCount;
-					it.count2 = totalCount - minusPlusCount;
-					it.adjustedCount = adjustedCount;
-					it.d_c = rpc.d_c;
-
-					// add gene annotations
-					pets = rpc.pets;
-					it.leftRegion = rpc.leftRegion;
-					it.leftPoint = rpc.leftPoint;
-					ArrayList<Integer> ts = CommonUtils.getPointsIdxWithinWindow(allTSS,
-							it.leftRegion.expand(tss_radius, tss_radius));
-					StringBuilder tsb = new StringBuilder();
-					TreeSet<String> gSymbols = new TreeSet<String>();
-					for (int i : ts) {
-						gSymbols.addAll(tss2geneSymbols.get(allTSS.get(i)));
-					}
-					for (String s : gSymbols)
-						tsb.append(s).append(",");
-					if (tsb.length() == 0)
-						it.leftLabel = "nonTSS";
-					else
-						it.leftLabel = tsb.toString();
-
-					it.rightRegion = rpc.rightRegion;
-					it.rightPoint = rpc.rightPoint;
-					ts = CommonUtils.getPointsIdxWithinWindow(allTSS, it.rightRegion.expand(tss_radius, tss_radius));
-					tsb = new StringBuilder();
-					gSymbols.clear();
-					for (int i : ts) {
-						gSymbols.addAll(tss2geneSymbols.get(allTSS.get(i)));
-					}
-					for (String s : gSymbols)
-						tsb.append(s).append(",");
-					if (tsb.length() == 0)
-						it.rightLabel = "nonTSS";
-					else
-						it.rightLabel = tsb.toString();
-				}  // all clusters
-				rpcs = null;
+				clustersCalled.addAll(rpcs);
 			} // all regions with long PETs
 		} // loop over all regions
 
+
+		// refresh the PETs again because some PET1 might not be
+		// included but are within the cluster_merge_dist range
+		// also expand the anchor for half of the cluster_merge_dist
+		for (ReadPairCluster cc : clustersCalled) {
+			ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion);
+			cc.pets.clear();
+			for (int i : idx2) {
+				ReadPair rp = low.get(i);
+				if (cc.rightRegion.contains(rp.r2))
+					cc.addReadPair(rp);
+			}
+			cc.update(false);
+		}
+		
+//		ArrayList<Region> rs = new ArrayList<Region>();
+//		for (ReadPairCluster cc : clustersCalled) {
+//			rs.add(cc.leftRegion);
+//			rs.add(cc.rightRegion);
+//		}
+//		System.out.println(rs.size());
+//		rs = Region.mergeRegions(rs);
+//		System.out.println(rs.size());
+//		int ll=0;
+//		for (Region r:rs)
+//			ll+=r.getWidth();
+//		System.out.println(genome.getChromLength(rs.get(0).getChrom()));
+//		System.out.println(ll);
+		
+		// Get GPS peak calls
+		int interPeakDistance = Args.parseInteger(args, "ipd", 1000);
+		ArrayList<Point> hits = new ArrayList<Point>();
+		List<GPSPeak> ps = new ArrayList<GPSPeak>();
+		for (Feature f: peaks) {
+			ComponentFeature cf = (ComponentFeature)f;
+			Point p = cf.getPeak();
+			ps.add(new GPSPeak(p.getGenome(), p.getChrom(), p.getLocation(), cf.getTotalEventStrength()));
+		}
+		Collections.sort(ps);
+		if (ps.size()>1) {
+			ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
+			for (int i=1;i<ps.size();i++) {
+				GPSPeak p1 = ps.get(i-1);
+				GPSPeak p2 = ps.get(i);
+				if (p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
+//						System.out.println(p1.expand(3000));
+					if (p1.getStrength()<p2.getStrength()) {
+						toRemove.add(p1);
+					}
+					else {
+						toRemove.add(p2);
+						i++;
+					}
+				}
+			}
+			ps.removeAll(toRemove);
+		}
+		hits.addAll(ps);
+		
+//		// load GPS calls, for easy testing
+//		String fileString = Args.parseString(args, "GPS", null);
+//		if (fileString!=null) {
+//			File gpsFile = new File(fileString);
+//			try {
+//				List<GPSPeak> ps = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+//				Collections.sort(ps);
+//				if (ps.size()>1) {
+//					ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
+//					for (int i=1;i<ps.size();i++) {
+//						GPSPeak p1 = ps.get(i-1);
+//						GPSPeak p2 = ps.get(i);
+//						if (p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
+//	//						System.out.println(p1.expand(3000));
+//							if (p1.getStrength()<p2.getStrength()) {
+//								toRemove.add(p1);
+//							}
+//							else {
+//								toRemove.add(p2);
+//								i++;
+//							}
+//						}
+//					}
+//					ps.removeAll(toRemove);
+//				}
+//				hits.addAll(ps);
+//			}
+//			catch(Exception e) {}
+//		}
+		
+		// re-assign PETs 
+		ArrayList<ReadPairCluster> clustersAssigned = new ArrayList<ReadPairCluster>();
+		for (ReadPairCluster cc : clustersCalled) {
+			int mergeDist = span2mergingDist(cc.span);
+			ArrayList<Integer> id1 = CommonUtils.getPointsIdxWithinWindow(hits, cc.leftRegion);
+			ArrayList<Integer> id2 = CommonUtils.getPointsIdxWithinWindow(hits, cc.rightRegion);
+			ArrayList<Pair<Point,Point>> peakPairs = new ArrayList<Pair<Point,Point>>();
+			for (int i1: id1) {
+				for (int i2: id2) {
+					Point p1 = hits.get(i1);
+					Point p2 = hits.get(i2);
+					int offset = p2.getLocation()-p1.getLocation();
+					if (Math.abs(offset)<this.min_span)
+						continue;
+					if (offset<0) {		// make sure p1 < p2
+						Point tmp = p1;
+						p1 = p2;
+						p2 = tmp;
+					}
+					peakPairs.add(new Pair<Point,Point>(p1,p2));
+				}
+			}
+			if (peakPairs.isEmpty()){			// No peak found, just keep the old one
+				clustersAssigned.add(cc);
+				continue;
+			}
+				
+//			System.out.println("\n"+cc.toString()+"\t"+cc.getLoopRegionString(cc.span/20)+"\t"+cc.leftRegion.toString()+"\t"+cc.rightRegion.toString());
+			ReadPairCluster[] rpcs = new ReadPairCluster[peakPairs.size()];
+//			System.out.print("    Peaks #="+peakPairs.size()+": ");
+			for (int i=0;i<peakPairs.size();i++) {
+//				System.out.print(String.format("[%d] %s; ", i, peakPairs.get(i).toString()));
+				rpcs[i] = new ReadPairCluster();
+			}
+//			System.out.println();
+			// initial assignment
+			for (ReadPair rp: cc.pets) {
+//				System.out.print("\t"+ rp.toString());
+				int min = Integer.MAX_VALUE;
+				int minId = -1;
+				for (int i=0;i<peakPairs.size();i++) {
+					Pair<Point,Point> pp = peakPairs.get(i);
+//					System.out.print(pp.toString());
+					int dist  = Math.max(pp.car().distance(rp.r1), pp.cdr().distance(rp.r2));		// Chebyshev distance
+////					System.out.print(" "+dist+"| ");
+					if (dist<min) {		//  && dist<mergeDist
+						minId = i;
+						min = dist;
+					}
+				}
+//				System.out.println(" --> "+min+"["+minId+"]");
+				if (minId>-1)
+					rpcs[minId].addReadPair(rp);
+			}
+			// secondary assignment
+			for (int i=0;i<rpcs.length;i++) {
+				int petCount = rpcs[i].pets.size();
+				if (petCount==0) 
+					continue;
+				if (petCount==1) {
+					ReadPair rp = rpcs[i].pets.get(0);
+					int min = Integer.MAX_VALUE;
+					int minId = -1;
+					for (int j=0;j<peakPairs.size();j++) {
+						if (i==j || rpcs[j].pets.isEmpty())	// exclude itself and empty cluster centers
+							continue;
+						Pair<Point,Point> pp = peakPairs.get(j);
+						int dist  = Math.max(pp.car().distance(rp.r1), pp.cdr().distance(rp.r2));		// Chebyshev distance
+						if (dist<min) {		//  && dist<mergeDist
+							minId = j;
+							min = dist;
+						}
+					}
+					if (minId>-1)
+						rpcs[minId].addReadPair(rp);
+					rpcs[i].pets.clear();
+				}
+			}
+			// update clusters
+			int rpcCount=0;
+			for (int i=0;i<rpcs.length;i++) {
+				int petCount = rpcs[i].pets.size();
+				if (petCount<2)
+					continue;
+				rpcCount++;
+				rpcs[i].update(false);
+				// set the peak positions as the anchor points
+				rpcs[i].leftPoint = peakPairs.get(i).car();
+				rpcs[i].rightPoint = peakPairs.get(i).cdr();
+				rpcs[i].d_c = cc.d_c;
+				rpcs[i].span = rpcs[i].leftPoint.distance(rpcs[i].rightPoint);
+			}
+			// merge RP clusters
+			if (rpcCount>1) {
+//				dc += 0;
+				for (int i=0;i<rpcs.length;i++) {
+					ReadPairCluster rpci = rpcs[i];
+					for (int j=i+1;j<rpcs.length;j++) {
+						ReadPairCluster rpcj = rpcs[j];
+						if (rpci.pets.isEmpty() || rpcj.pets.isEmpty())
+							continue;
+						// if nearby, or PET2 (if not merged, PET2 will be deleted), merge
+						if (rpci.distance(rpcj)<mergeDist || 
+								(rpci.pets.size()==2 && rpci.span>dc) || 
+								(rpcj.pets.size()==2 && rpcj.span>dc)) {	
+							ReadPairCluster donor=null, receiver=null;
+							if (rpci.pets.size()>rpcj.pets.size()) {
+								donor = rpcj;
+								receiver = rpci;
+							}
+							else if (rpci.pets.size()<rpcj.pets.size()){
+								donor = rpci;
+								receiver = rpcj;
+							} else {		// equal size, take the stronger peak-pair
+								double iStrength = ((GPSPeak)peakPairs.get(i).car()).getStrength()+((GPSPeak)peakPairs.get(i).cdr()).getStrength();
+								double jStrength = ((GPSPeak)peakPairs.get(j).car()).getStrength()+((GPSPeak)peakPairs.get(j).cdr()).getStrength();
+								if (iStrength>=jStrength){
+									donor = rpcj;
+									receiver = rpci;
+								}
+								else{
+									donor = rpci;
+									receiver = rpcj;
+								}
+							}
+							for(ReadPair rp: donor.pets)
+								receiver.addReadPair(rp);
+							receiver.update(false);
+							donor.pets.clear();
+
+						}
+					}
+				}
+//				dc += 0;
+			}
+			for (int i=0;i<rpcs.length;i++) {
+				if (rpcs[i].pets.size()>=2) {
+					clustersAssigned.add(rpcs[i]);
+//					System.out.println("    "+ rpcs[i].toString());
+				}
+			}
+//			dc += 0;
+		}
+		clustersCalled.clear();
+		clustersCalled.addAll(clustersAssigned);
+		
+		// finalize PET clusters
+		for (ReadPairCluster cc : clustersCalled) {
+			ArrayList<ReadPair> pets = cc.pets;
+			if (pets.size() < min_pet_count)
+				continue;
+			// skip PET2 that have anchor wider than dc, or 1D read count is also 2 (not significant by MICC)
+			if (pets.size()==2){
+				if (cc.r1width>dc && cc.r2width>dc)	
+					continue;
+				if (flags.contains("strict")){		// more stringent calls
+					int l = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion.expand(dc, dc)).size();
+					int r = CommonUtils.getPointsIdxWithinWindow(highEnds, cc.rightRegion.expand(dc, dc)).size();
+					if (l==2 || r==2 || (l<=4 && r<=4))
+						continue;
+				}
+			}
+
+			// mark all PETs in the cluster as used (PET2+)
+			// to get real PET1 (no PET1 from the m-p adjustment)
+			usedPETs.addAll(pets);	
+			
+			int totalCount = pets.size();
+			int minusPlusCount = 0;
+			int adjustedCount = totalCount;
+			ReadPairCluster rpc = cc;
+			
+//			// new PET cluster with adjustment
+//			ReadPairCluster rpc = new ReadPairCluster(); 
+//			if (flags.contains("mp_adjust")){
+//				// count minus-plus PETs to adjust the PET counts
+//				ArrayList<ReadPair> mpRPs = new ArrayList<ReadPair>();
+//				for (ReadPair rp : pets)
+//					if (rp.r1.getStrand() == '-' && rp.r2.getStrand() == '+')
+//						mpRPs.add(rp);
+//				minusPlusCount = mpRPs.size();
+//				pets.removeAll(mpRPs);
+//				adjustedCount = -1;
+//				Collections.sort(mpRPs);		// sort by low end read1: default
+//				if (pets.isEmpty()) { //  with only minus-plus PETs
+//					int dist = cc.span;
+//					if (dist >= maxEdge)
+//						adjustedCount = minusPlusCount;
+//					else {
+//						int index = Collections.binarySearch(binEdges, dist);
+//						if (index < 0) // if key not found
+//							index = -(index + 1);
+//						adjustedCount = (int) (minusPlusCount * mpNonSelfFraction.get(index));
+//					}
+//					// add the adjusted m-p PETs in the middle
+//					int midIndexMP = mpRPs.size() / 2 - adjustedCount /2;
+//					int endIndex = midIndexMP + adjustedCount;
+//					for (int k = midIndexMP; k < endIndex; k++)
+//						rpc.addReadPair(mpRPs.get(k));
+//					rpc.update();
+//				} else {
+//					for (ReadPair rp : pets)
+//						rpc.addReadPair(rp);
+//					rpc.update();
+//					int dist = rpc.span;
+//					if (dist >= maxEdge)
+//						adjustedCount = totalCount;
+//					else {
+//						int index = Collections.binarySearch(binEdges, dist);
+//						if (index < 0) // if key not found
+//							index = -(index + 1);
+//						adjustedCount = totalCount - minusPlusCount
+//								+ (int) (minusPlusCount * mpNonSelfFraction.get(index));
+//					}
+//					// add the adjusted m-p PETs in the middle
+//					int extra = adjustedCount - (totalCount - minusPlusCount);
+//					int midIndexMP = mpRPs.size() / 2 - extra /2;
+//					int endIndex = midIndexMP + extra;
+//					for (int k = midIndexMP; k < endIndex; k++)
+//						rpc.addReadPair(mpRPs.get(k));
+//					rpc.update();
+//				}
+//				if (adjustedCount < min)
+//					continue;
+//			}
+//			else	// not adjustment, rpc is the cluster cc
+//				rpc = cc;
+								
+			Interaction it = new Interaction();
+			interactions.add(it);
+			it.count = totalCount;
+			it.count2 = totalCount - minusPlusCount;
+			it.adjustedCount = adjustedCount;
+			it.d_c = rpc.d_c;
+
+			// add gene annotations
+			pets = rpc.pets;
+			it.leftRegion = rpc.leftRegion;
+			it.leftPoint = rpc.leftPoint;
+			ArrayList<Integer> ts = CommonUtils.getPointsIdxWithinWindow(allTSS,
+					it.leftRegion.expand(tss_radius, tss_radius));
+			StringBuilder tsb = new StringBuilder();
+			TreeSet<String> gSymbols = new TreeSet<String>();
+			for (int i : ts) {
+				gSymbols.addAll(tss2geneSymbols.get(allTSS.get(i)));
+			}
+			for (String s : gSymbols)
+				tsb.append(s).append(",");
+			if (tsb.length() == 0)
+				it.leftLabel = "nonTSS";
+			else
+				it.leftLabel = tsb.toString();
+
+			it.rightRegion = rpc.rightRegion;
+			it.rightPoint = rpc.rightPoint;
+			ts = CommonUtils.getPointsIdxWithinWindow(allTSS, it.rightRegion.expand(tss_radius, tss_radius));
+			tsb = new StringBuilder();
+			gSymbols.clear();
+			for (int i : ts) {
+				gSymbols.addAll(tss2geneSymbols.get(allTSS.get(i)));
+			}
+			for (String s : gSymbols)
+				tsb.append(s).append(",");
+			if (tsb.length() == 0)
+				it.rightLabel = "nonTSS";
+			else
+				it.rightLabel = tsb.toString();
+		}  // all clusters
+		
 		interactions.trimToSize();
 		Collections.sort(interactions);		
 		System.out.println("\nCalled " + interactions.size() + " PET clusters, " + CommonUtils.timeElapsed(tic0));
@@ -2014,6 +2378,7 @@ public class CID {
 		System.out.println("\nAnnotate and report, " + CommonUtils.timeElapsed(tic0));
 		// report the interactions and annotations
 		StringBuilder sb = new StringBuilder();
+		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", "");
 		for (Interaction it : interactions) {
 			sb.append(it.toString()).append("\t");
 
@@ -2164,6 +2529,8 @@ public class CID {
 		}
 
 		sb = new StringBuilder();
+		String filename = Args.parseString(args, "out", "Result") + ".bedpe";
+		CommonUtils.writeFile(filename, sb.toString());
 		for (Interaction it : interactions) {
 			// Note: the BED coordinate is centered on the anchor Point, 
 			// but the read counts are from the anchor region + padding
@@ -2183,11 +2550,11 @@ public class CID {
 						CommonUtils.getPointsIdxWithinWindow(highEnds, rightLocal).size()));
 			
 			if (sb.length()>10000000){
-				CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
+				CommonUtils.appendFile(filename, sb.toString());
 				sb=new StringBuilder();
 			}
 		}
-		CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".bedpe", sb.toString());
+		CommonUtils.appendFile(filename, sb.toString());
 	}
 
 	/**
@@ -2541,7 +2908,7 @@ public class CID {
 		}
 	}
 	
-	private class TSSwithReads {
+	class TSSwithReads {
 		String symbol;
 		int id;
 		StrandedPoint coord;
@@ -2550,15 +2917,15 @@ public class CID {
 	}
 
 	/** r1 should have lower coordinate than r2 */
-	private class ReadPair implements Comparable<ReadPair> {
+	class ReadPair implements Comparable<ReadPair> {
 		StrandedPoint r1;
 		StrandedPoint r2;
 
-		public int compareRead1(ReadPair i) {
+		int compareRead1(ReadPair i) {
 			return r1.compareTo(i.r1);
 		}
 
-		public int compareRead2(ReadPair i) {
+		int compareRead2(ReadPair i) {
 			return r2.compareTo(i.r2);
 		}
 
@@ -2570,9 +2937,13 @@ public class CID {
 		public String toString() {
 			return r1.toString() + "--" + r2.toString();
 		}
+		
+		int distance(ReadPair rp) {
+			return Math.max(r1.distance(rp.r1), r2.distance(rp.r2));
+		}
 	}
 
-	private class ReadPairCluster implements Comparable<ReadPairCluster> {
+	class ReadPairCluster implements Comparable<ReadPairCluster> {
 		int r1min = Integer.MAX_VALUE;
 		int r1max = -1;
 		int r2min = Integer.MAX_VALUE;
@@ -2675,6 +3046,10 @@ public class CID {
 		
 		int getLoopRegionWidth() {
 			return r2max - r1min;
+		}
+		
+		public int distance(ReadPairCluster rpc) {
+			return Math.max(leftPoint.distance(rpc.leftPoint), rightPoint.distance(rpc.rightPoint));
 		}
 		
 		public String toString2() {

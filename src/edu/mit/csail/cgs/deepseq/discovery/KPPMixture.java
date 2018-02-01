@@ -67,7 +67,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private double[] gaussian;
 	private boolean doScanning=true;
 	
-//	private boolean processAllRegions = false;
+	private boolean simplePostProcessing = false;
 	
 	/****************
 	 * Data
@@ -89,6 +89,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	// List of all EM predictions
 	private List<ComponentFeature> allFeatures;
 	private ArrayList<Feature> insignificantFeatures;	// does not pass statistical significance
+	public ArrayList<Feature> getInsignificantFeatures(){
+		return insignificantFeatures;
+	}
 	private ArrayList<Feature> filteredFeatures;	// filtered artifacts (bad shape or low fold enrichment)
 	private List<Feature>[] condSignalFeats; //Signal channel features in each condition
 
@@ -127,11 +130,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private boolean kmerPreDefined = false;
 	
 	public KPPMixture(Genome g, 
-                      ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
-                      ArrayList<String> conditionNames,
-                      String[] args) {
+            ArrayList<Pair<DeepSeqExpt,DeepSeqExpt>> expts,
+            ArrayList<String> conditionNames,
+            String[] args) {
 		super (args, g, expts);
-
+		
 		try{
 			File f = new File("GEM_Log.txt");
 			if(f.exists() && f.length()>1e7){
@@ -147,24 +150,24 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
+		
 		/* ***************************************************
-		 * Load Binding Model, empirical distribution
-		 * ***************************************************/
+		* Load Binding Model, empirical distribution
+		* ***************************************************/
 		String modelFile = Args.parseString(args, "d", null);	// read distribution file
-
+		
 		commonInit(modelFile);
 		
 		File outFile = new File(outName);
 		String outPrefix = outFile.getAbsoluteFile().getName();	
-
+		
 		File parentFolder = outFile.getParentFile();
 		File gem_outputs_folder;
 		if (parentFolder!=null){
 			if (!parentFolder.exists()){
 				System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
 				cleanUpDataLoader();
-	    		System.exit(-1);
+				System.exit(-1);
 			}
 			gem_outputs_folder = new File(parentFolder, outPrefix);
 		}
@@ -180,8 +183,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		allModels.put(outName+"_0", model);
 		
 		/* ***************************************************
-		 * Print out command line options
-		 * ***************************************************/
+		* Print out command line options
+		* ***************************************************/
 		StringBuffer sb = new StringBuffer();
 		sb.append("\nOptions:\n");
 		for (String arg:args){
@@ -193,61 +196,61 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		paramString = sb.toString();
 		log(1, paramString);
 		
-    	/* *********************************
-    	 * Load options
-    	 ***********************************/    
+		/* *********************************
+		* Load options
+		***********************************/    
 		try{
 			config.parseArgs(args);  
-	        config.windowSize = modelWidth * config.window_size_factor;
-	        modelPadding = Math.abs(model.getSummit()+config.k_max);
+		  config.windowSize = modelWidth * config.window_size_factor;
+		  modelPadding = Math.abs(model.getSummit()+config.k_max);
 		}
 		catch (Exception e){
 			e.printStackTrace();
 			cleanUpDataLoader();
-    		System.exit(-1);
+			System.exit(-1);
 		}
 		if (config.SCAN_RANGE > this.modelWidth/6)
 			config.SCAN_RANGE = this.modelWidth/6;
-
-    	// if mappable_genome_length is not provided, compute as 0.8 of total genome size
-        if (config.mappable_genome_length<0){		
-	        config.mappable_genome_length = 0.8 * gen.getGenomeSize();
-	        System.out.println(String.format("\nMappable Genome Length is %,d.", (long)config.mappable_genome_length));
-        }
-   	
-    	if(config.third_lambda_region_width < config.second_lambda_region_width) {
-    		System.err.println("\nThe second control region width (w3) has to be more than " + config.second_lambda_region_width + " bp.");
+		
+		// if mappable_genome_length is not provided, compute as 0.8 of total genome size
+		if (config.mappable_genome_length<0){		
+		  config.mappable_genome_length = 0.8 * gen.getGenomeSize();
+		  System.out.println(String.format("\nMappable Genome Length is %,d.", (long)config.mappable_genome_length));
+		}
+		
+		if(config.third_lambda_region_width < config.second_lambda_region_width) {
+			System.err.println("\nThe second control region width (w3) has to be more than " + config.second_lambda_region_width + " bp.");
 			cleanUpDataLoader();
 			System.exit(-1);
-    	}
-    	
-
-    	/* *********************************
-    	 * Load Kmer list
-    	 ***********************************/
-    	String kmerFile = Args.parseString(args, "kf", null);
-    	if (kmerFile!=null){
-    		kmerPreDefined = true;
+		}
+		
+		
+		/* *********************************
+		* Load Kmer list
+		***********************************/
+		String kmerFile = Args.parseString(args, "kf", null);
+		if (kmerFile!=null){
+			kmerPreDefined = true;
 			File kFile = new File(kmerFile);
 			if(kFile.isFile()){
 				KmerSet kmerset = new KmerSet(kFile);
-	        	kmac = new KMAC(kmerset.getKmers(0), config);
+		  	kmac = new KMAC(kmerset.getKmers(0), config);
 			}
-    	}
-    	
-    	/* *********************************
-    	 * load ChIP-Seq read data
-    	 ***********************************/
-    	//Determine the subset of genome to run EM
-    	ArrayList<Region> subsetRegions = getSubsetRegions(args);
-//    	if (!subsetRegions.isEmpty())
-//    		config.cache_genome = false;
-     	
-    	//load read data
-		this.conditionNames = conditionNames;
-    	loadChIPSeqData(subsetRegions, args);
+		}
 		
-    	// check if there is miss control data
+		/* *********************************
+		* load ChIP-Seq read data
+		***********************************/
+		//Determine the subset of genome to run EM
+		ArrayList<Region> subsetRegions = getSubsetRegions(args);
+		//if (!subsetRegions.isEmpty())
+		//	config.cache_genome = false;
+		
+		//load read data
+		this.conditionNames = conditionNames;
+		loadChIPSeqData(subsetRegions, args);
+		
+		// check if there is miss control data
 		if (controlDataExist){
 			for (Pair<ReadCache, ReadCache> p:caches){
 				if (p.cdr()==null){
@@ -262,11 +265,11 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		// exclude some regions
-     	String excludedName = Args.parseString(args, "ex", "yes");
-     	int exludedLength = 0;
-     	if (!excludedName.equals("yes")){
-     		excludedRegions = mergeRegions(CommonUtils.loadCgsRegionFile(excludedName, gen), false);
-     		log(1, "\nExclude " + excludedRegions.size() + " regions.\n");
+		String excludedName = Args.parseString(args, "ex", "yes");
+		int exludedLength = 0;
+		if (!excludedName.equals("yes")){
+			excludedRegions = mergeRegions(CommonUtils.loadCgsRegionFile(excludedName, gen), false);
+			log(1, "\nExclude " + excludedRegions.size() + " regions.\n");
 			for(int c = 0; c < numConditions; c++) {
 				caches.get(c).car().excludeRegions(excludedRegions);
 				if(controlDataExist) {
@@ -275,12 +278,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			}   
 			for (Region r:excludedRegions)
 				exludedLength += r.getWidth();
-     	}
-     	// subtract excluded regions length from mappable genome size
-     	config.mappable_genome_length -= exludedLength;
-     	
+		}
+		// subtract excluded regions length from mappable genome size
+		config.mappable_genome_length -= exludedLength;
+		
 		// print initial dataset counts
-     	log(1, "\nOriginal read count stats:");
+		log(1, "\nOriginal read count stats:");
 		for(int c = 0; c < numConditions; c++) {
 			log(1, caches.get(c).car().getStatsString());
 			if(controlDataExist) {
@@ -309,8 +312,217 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		// estimate ratio and segment genome into regions
-    	ratio_total=new double[numConditions];
-    	ratio_non_specific_total = new double[numConditions];
+		ratio_total=new double[numConditions];
+		ratio_non_specific_total = new double[numConditions];
+		sigHitCounts=new double[numConditions];
+		seqwin=100;
+		
+		if (config.ip_ctrl_ratio>0){		// if ratio is provided
+			for(int i=0; i<numConditions; i++){
+				ratio_total[i]=config.ip_ctrl_ratio;
+				ratio_non_specific_total[i]=config.ip_ctrl_ratio;
+			}
+		}
+		else{
+			if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
+		      // estimate IP/Ctrl ratio from all reads
+		  	for(int i=0; i<numConditions; i++){
+					Pair<ReadCache,ReadCache> e = caches.get(i);
+					double ipCount = e.car().getHitCount();				
+					double ctrlCount = 0;
+					if (e.cdr()!=null){
+						ctrlCount = e.cdr().getHitCount();
+						ratio_total[i]=ipCount/ctrlCount;
+						System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
+					}
+		      }
+		  } else{	// want to analyze only specified regions, set default
+		  	for(int i=0; i<numConditions; i++){
+		  		Pair<ReadCache,ReadCache> e = caches.get(i);
+		  		if (e.cdr()!=null)
+						ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
+		  		else
+		  			ratio_total[i]=1;
+		  		ratio_non_specific_total[i]=1;
+		  	}
+		  }       
+		}
+		System.out.println("\nSorting reads and selecting enriched regions ...");
+		
+		String subsetFormat = Args.parseString(args, "subFormat", "");
+		// if not provided region list, directly segment genome into enrichedRegions
+		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
+			restrictRegions = selectEnrichedRegions(subsetRegions, true);
+			// ip/ctrl ratio by regression on non-enriched regions
+			if (config.ip_ctrl_ratio==-1){
+				ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
+				temp.addAll(excludedRegions);
+				calcIpCtrlRatio(mergeRegions(temp, false));
+				if(controlDataExist) {
+					for(int t = 0; t < numConditions; t++)
+						System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
+				}
+			}
+		} else{
+			restrictRegions = subsetRegions;
+		}
+		
+		log(1, "\nThe genome is segmented into "+restrictRegions.size()+" regions for analysis.");
+		
+		if (restrictRegions.isEmpty())
+			System.exit(-1);
+		
+		// exclude regions?
+		//        if (excludedRegions!=null){
+		//	        	ArrayList<Region> toRemove = new ArrayList<Region>();
+		//	        ArrayList<Region> toAdd = new ArrayList<Region>();
+		//	
+		//	    	for (Region ex: excludedRegions){
+		//	    		for (Region r:restrictRegions){
+		//	        		if (r.overlaps(ex)){
+		//	        			toRemove.add(r);
+		//	        			if (r.getStart()<ex.getStart())
+		//	        				toAdd.add(new Region(gen, r.getChrom(), r.getStart(), ex.getStart()-1));
+		//	        			if (r.getEnd()>ex.getEnd())
+		//	        				toAdd.add(new Region(gen, r.getChrom(), ex.getEnd()+1, r.getEnd()));
+		//	        		}
+		//	        	}
+		//	        }
+		//	        restrictRegions.addAll(toAdd);
+		//	        restrictRegions.removeAll(toRemove);
+		//        }
+		
+		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
+		experiments = null;
+		System.gc();
+	}//end of BindingMixture constructor
+
+	/**********************************************************
+	 * Constructer to run with pre-loaded data (for CID)
+	 **********************************************************/ 
+	public KPPMixture(Genome g, 
+                      ArrayList<Pair<ReadCache,ReadCache>> caches,
+                      String[] args) {
+		super(args);
+		try{
+			File f = new File("GEM_Log.txt");
+			if(f.exists() && f.length()>1e7){
+			      File newName = new File("GEM_log"+CommonUtils.getDateTimeString()+".txt");
+			      if(!f.renameTo(newName)) {
+			         System.out.println("Error in making a new the GEM_log.txt file, keep appending. Note that it is 10MB big now.");
+			      }
+			}
+			logFileWriter = new FileWriter("GEM_Log.txt", true); //append
+			logFileWriter.write("\n==============================================\n");
+			logFileWriter.write(CommonUtils.getDateTimeString());
+			logFileWriter.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+				
+		this.caches = caches;
+		numConditions=caches.size();
+		for (int ii=0; ii<numConditions; ii++)
+			conditionNames.add(""+ii);
+		ComponentFeature.setConditionNames(conditionNames);
+		condSignalFeats = new ArrayList[numConditions];
+		for(int c = 0; c < numConditions; c++) { condSignalFeats[c] = new ArrayList<Feature>(); }
+		controlDataExist = false;
+//		simplePostProcessing = true;
+		
+		/* ***************************************************
+		 * Load Binding Model, empirical distribution
+		 * ***************************************************/
+		String modelFile = Args.parseString(args, "d", null);	// read distribution file
+
+		commonInit(modelFile);
+		constants.INIT_SPACING = 10;
+		
+		model.printToFile(outName+"_0.Read_distribution.txt");
+		allModels.put(outName+"_0", model);
+		
+		
+	    	/* *********************************
+	    	 * Load options
+	    	 ***********************************/    
+		try{
+			config.parseArgs(args);  
+	        config.windowSize = modelWidth * config.window_size_factor;
+//	        config.sort_by_location = true;		// do not compute p-value, can only sort by location
+	        modelPadding = Math.abs(model.getSummit()+config.k_max);
+		}
+		catch (Exception e){
+			e.printStackTrace();
+			cleanUpDataLoader();
+    			System.exit(-1);
+		}
+		if (config.SCAN_RANGE > this.modelWidth/6)
+			config.SCAN_RANGE = this.modelWidth/6;
+
+    		// if mappable_genome_length is not provided, compute as 0.8 of total genome size
+        if (config.mappable_genome_length<0){		
+	        config.mappable_genome_length = 0.8 * gen.getGenomeSize();
+	        System.out.println(String.format("\nMappable Genome Length is %,d.", (long)config.mappable_genome_length));
+        }
+        config.third_lambda_region_width = model.getWidth()*20; 
+        config.second_lambda_region_width = model.getWidth()*10; 
+    		// for Pol2 data, more broad region, more homotypic peaks, use smaller alpha, thus larger af
+//        config.alpha_factor = 10;
+        
+	    	/* *********************************
+	    	 * load ChIP-Seq read data
+	    	 ***********************************/
+	    	//Determine the subset of genome to run EM
+	    	ArrayList<Region> subsetRegions = getSubsetRegions(args);
+	//    	if (!subsetRegions.isEmpty())
+	//    		config.cache_genome = false;
+	     	
+//	    	//load read data
+//	    	loadChIPSeqData(subsetRegions, args);
+			
+	    	// check if there is miss control data
+		if (controlDataExist){
+			for (Pair<ReadCache, ReadCache> p:caches){
+				if (p.cdr()==null){
+					System.err.println("\nMissing control data to match "+p.car().getName());
+					cleanUpDataLoader();
+					System.exit(-1);
+				}
+			}
+		}
+		else{
+			config.local_neighborhood_control = false;	// pvalue_poisson_input only make sense when having control data
+		}
+     	
+		// print initial dataset counts
+     	log(1, "\nSingle-end read count stats:");
+		for(int c = 0; c < numConditions; c++) {
+			log(1, caches.get(c).car().getStatsString());
+			if(controlDataExist) {
+				log(1, caches.get(c).cdr().getStatsString());
+			}
+		}
+		// Filtering/reset bases
+		if(config.filterDupReads){
+			applyPoissonFilter(false);
+			applyPoissonFilter(true);
+		}
+
+		// esitimate sparseness minimum value from the whole genome coverage
+		if (config.sparseness==-1){
+			double totalReadCount=0;
+			for(int i=0; i<numConditions; i++)
+				totalReadCount += caches.get(i).car().getHitCount();	
+			int regionWidth = 1000;
+			int expectedHitCount = calcExpectedHitCount(totalReadCount, config.poisson_alpha, regionWidth);
+			config.sparseness = expectedHitCount;
+			log(1, String.format("\nAt Poisson p-value %.1e, in a %dbp window, expect %d reads.\n", 
+					config.poisson_alpha, regionWidth, expectedHitCount));
+		}
+		
+		// estimate ratio and segment genome into regions
+	    	ratio_total=new double[numConditions];
+	    	ratio_non_specific_total = new double[numConditions];
         sigHitCounts=new double[numConditions];
         seqwin=100;
      	
@@ -323,7 +535,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		else{
 			if (wholeGenomeDataLoaded){		// estimate some parameters if whole genome data
 		        // estimate IP/Ctrl ratio from all reads
-	        	for(int i=0; i<numConditions; i++){
+	        		for(int i=0; i<numConditions; i++){
 					Pair<ReadCache,ReadCache> e = caches.get(i);
 					double ipCount = e.car().getHitCount();				
 					double ctrlCount = 0;
@@ -333,15 +545,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 						System.out.println(String.format("\n%s\tIP: %.0f\tCtrl: %.0f\t IP/Ctrl: %.2f", conditionNames.get(i), ipCount, ctrlCount, ratio_total[i]));
 					}
 		        }
-	        } else{	// want to analyze only specified regions, set default
-	        	for(int i=0; i<numConditions; i++){
-	        		Pair<ReadCache,ReadCache> e = caches.get(i);
-	        		if (e.cdr()!=null)
-						ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
-	        		else
-	        			ratio_total[i]=1;
-	        		ratio_non_specific_total[i]=1;
-	        	}
+	        } 
+			else{	// want to analyze only specified regions, set default
+		        	for(int i=0; i<numConditions; i++){
+		        		Pair<ReadCache,ReadCache> e = caches.get(i);
+		        		if (e.cdr()!=null)
+							ratio_total[i]=e.car().getHitCount()/e.cdr().getHitCount();
+		        		else
+		        			ratio_total[i]=1;
+		        		ratio_non_specific_total[i]=1;
+		        	}
 	        }       
 		}
         System.out.println("\nSorting reads and selecting enriched regions ...");
@@ -350,72 +563,23 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     	// if not provided region list, directly segment genome into enrichedRegions
 		if (wholeGenomeDataLoaded || !subsetFormat.equals("Regions")){
 			restrictRegions = selectEnrichedRegions(subsetRegions, true);
-     		// ip/ctrl ratio by regression on non-enriched regions
-			if (config.ip_ctrl_ratio==-1){
-     			ArrayList<Region> temp = (ArrayList<Region>)restrictRegions.clone();
-     			temp.addAll(excludedRegions);
-    			calcIpCtrlRatio(mergeRegions(temp, false));
-    			if(controlDataExist) {
-    				for(int t = 0; t < numConditions; t++)
-    					System.out.println(String.format("For condition %s, IP/Control = %.2f", conditionNames.get(t), ratio_non_specific_total[t]));
-    			}
-    		}
 		} else{
 			restrictRegions = subsetRegions;
 		}
 
 		log(1, "\nThe genome is segmented into "+restrictRegions.size()+" regions for analysis.");
-
+//		int ll=0;
+//		for (Region r:restrictRegions)
+//			ll+=r.getWidth();
+//		System.out.println(ll);
         if (restrictRegions.isEmpty())
-        	System.exit(-1);
-        
-        // exclude regions?
-        //        if (excludedRegions!=null){
-        //	        	ArrayList<Region> toRemove = new ArrayList<Region>();
-        //	        ArrayList<Region> toAdd = new ArrayList<Region>();
-        //	
-        //	    	for (Region ex: excludedRegions){
-        //	    		for (Region r:restrictRegions){
-        //	        		if (r.overlaps(ex)){
-        //	        			toRemove.add(r);
-        //	        			if (r.getStart()<ex.getStart())
-        //	        				toAdd.add(new Region(gen, r.getChrom(), r.getStart(), ex.getStart()-1));
-        //	        			if (r.getEnd()>ex.getEnd())
-        //	        				toAdd.add(new Region(gen, r.getChrom(), ex.getEnd()+1, r.getEnd()));
-        //	        		}
-        //	        	}
-        //	        }
-        //	        restrictRegions.addAll(toAdd);
-        //	        restrictRegions.removeAll(toRemove);
-        //        }
-        
+        		System.exit(-1);
+
 		log(2, "BindingMixture initialized. "+numConditions+" conditions.");
-		experiments = null;
+
 		System.gc();
 	}//end of BindingMixture constructor
 
-	/**
-	 * This constructor is only called from Robustness analysis
-	 * The read data of each sub-sampling will be suppled with simpleExecute() call
-	 */
-	public KPPMixture(String[] args, boolean doScanning){
-		super (args);
-
-		// ChIP-Seq data
-		this.doScanning = doScanning;
-	    controlDataExist = false;
-	    numConditions = 1;
-
-	    String modelFile = Args.parseString(args, "d", null);
-		commonInit(modelFile);
-
-        // the configuration of mixture model
-        addConfigString("Do ML scanning\t", doScanning);
-        addConfigString("Batch elimination", constants.BATCH_ELIMINATION);
-        addConfigString("Smart inital event spacing", constants.SMART_SPACING);
-        //        addConfigString("Make hard assignment", properties.make_hard_assignment);
-        System.out.println(getConfigString());
-	}
 	
 	protected void finalize() throws Throwable {
 	    try {
@@ -559,20 +723,20 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         Vector<Region> regionsRunning = new Vector<Region>();		// object to pass info of currently running regions
 
         if (config.strand_type ==1)
-        	log(1, "Calling events in single-strand mode ...\n");
+        		log(1, "Calling events in single-strand mode ...\n");
         
         // regionsToRun is shared by all threads. Each thread will access it exclusively, lock the obj, get first region, remove it, then unlock.
         ArrayList<Region> regionsToRun = new ArrayList<Region>();
         if (!config.process_all_regions){		// first round, only process some of the region, sort to put the strong regions on top
-        	int[] idx = StatUtil.findSort(enrichedRegionReadCounts);
-        	int skipIdx = (int)Math.round(totalRegionCount * (1-config.top_fract_to_skip))-1;		// skip top fractoin (may be artifacts)
-        	for (int i=skipIdx+1;i<totalRegionCount;i++)
-        		regionsToRun.add(restrictRegions.get(idx[i]));
-        	for (int i=skipIdx;i>=0;i--)
-        		regionsToRun.add(restrictRegions.get(idx[i]));
+	        	int[] idx = StatUtil.findSort(enrichedRegionReadCounts);
+	        	int skipIdx = (int)Math.round(totalRegionCount * (1-config.top_fract_to_skip))-1;		// skip top fractoin (may be artifacts)
+	        	for (int i=skipIdx+1;i<totalRegionCount;i++)
+	        		regionsToRun.add(restrictRegions.get(idx[i]));
+	        	for (int i=skipIdx;i>=0;i--)
+	        		regionsToRun.add(restrictRegions.get(idx[i]));
         }
         else
-        	regionsToRun.addAll(restrictRegions);
+        		regionsToRun.addAll(restrictRegions);
         
         Iterator<Region> iterator = regionsToRun.iterator();
         for (int i = 0 ; i < threads.length; i++) {
@@ -598,14 +762,14 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 if (threads[i].isAlive()) {
                     anyrunning = true;
                     if (count == processedRegionCount.size()){
-                    	try{
-	                    	heavyRegions.addAll(regionsRunning);
-	                    	if (config.verbose>1 && !regionsRunning.isEmpty())
-	                    		System.out.println("Analyzing "+regionsRunning.elementAt(0).toString());
-                    	}
-                    	catch (ConcurrentModificationException e){
-                    		//ignore
-                    	}
+	                    	try{
+		                    	heavyRegions.addAll(regionsRunning);
+		                    	if (config.verbose>1 && !regionsRunning.isEmpty())
+		                    		System.out.println("Analyzing "+regionsRunning.elementAt(0).toString());
+	                    	}
+	                    	catch (ConcurrentModificationException e){
+	                    		//ignore
+	                    	}
                     }
                     break;
                 }
@@ -622,17 +786,28 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         } // while thread running loop
         
         if (config.process_all_regions)
-        	System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        		System.out.println(totalRegionCount+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
         else
-        	System.out.println(processedRegionCount.size()+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
+        		System.out.println(processedRegionCount.size()+"\t/"+totalRegionCount+"\t"+CommonUtils.timeElapsed(tic));
         
         if (compFeatures.isEmpty()){
-        	log(1, "No valid binding event was found.");
-        	return signalFeatures;
+	        	log(1, "No valid binding event was found.");
+	        	return signalFeatures;
         }
         processedRegionCount.clear();
         log(3,String.format("%d threads have finished running", config.maxThreads));
-        if (config.process_all_regions || goodFeatures.size()<config.top_events*2){
+        
+//        if (simplePostProcessing) {
+//        	ssing(compFeatures);
+//			for (ComponentFeature cf: compFeatures)
+//        			signalFeatures.add(cf);
+//			compFeatures.clear();
+//	        goodFeatures.clear();
+//
+//			return signalFeatures;
+//        }
+        
+        if ((config.process_all_regions || goodFeatures.size()<config.top_events*2)){
 	        compFeatures.trimToSize();
 	        
 	        // print out the heavy regions
@@ -669,27 +844,27 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         }
         else{	// simplified processing for partial results
         	
-        	for (ComponentFeature cf: goodFeatures)
-        		signalFeatures.add(cf);
-    		// set joint event flag in the events
-    		if (signalFeatures.size()>=2){
-    			for (int i=0;i<signalFeatures.size();i++){
-    				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-    				cf.setJointEvent(false);		// clean the mark first
-    			}
-    			Collections.sort(goodFeatures);		// sort by location
-    			for (int i=0;i<signalFeatures.size()-1;i++){
-    				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
-    				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
-    				if (cf.onSameChrom(cf2)){
-    					if (cf.getPosition().distance(cf2.getPosition())<=model.getWidth()){
-    						cf.setJointEvent(true);
-    						cf2.setJointEvent(true);
-    					}
-    				}
-    			}
-    		}
-    		log(1, "\nFinish sampling events to estimate read distribution: "+CommonUtils.timeElapsed(tic)+"\n");
+    			for (ComponentFeature cf: goodFeatures)
+	        		signalFeatures.add(cf);
+	    		// set joint event flag in the events
+	    		if (signalFeatures.size()>=2){
+	    			for (int i=0;i<signalFeatures.size();i++){
+	    				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+	    				cf.setJointEvent(false);		// clean the mark first
+	    			}
+	    			Collections.sort(goodFeatures);		// sort by location
+	    			for (int i=0;i<signalFeatures.size()-1;i++){
+	    				ComponentFeature cf = (ComponentFeature)signalFeatures.get(i);
+	    				ComponentFeature cf2 = (ComponentFeature)signalFeatures.get(i+1);
+	    				if (cf.onSameChrom(cf2)){
+	    					if (cf.getPosition().distance(cf2.getPosition())<=model.getWidth()){
+	    						cf.setJointEvent(true);
+	    						cf2.setJointEvent(true);
+	    					}
+	    				}
+	    			}
+	    		}
+	    		log(1, "\nFinish sampling events to estimate read distribution: "+CommonUtils.timeElapsed(tic)+"\n");
         }
         
         // clearn up
@@ -1743,9 +1918,15 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 			if (maxCount<count)
 				maxCount = count;
 		}
+		 
+//		// the orignal sqrt(max)/factor formular is tuned for ChIP-seq profile of ~550 bp.
+//		// if the profile is larger, should scale it
+//		if ((left+right)>550)
+//			maxCount = maxCount*550/(left+right);
         
 		double alphaEstimate = 0;
 		alphaEstimate = Math.sqrt(maxCount)/config.alpha_factor;
+//		System.err.println(String.format("(%.0f --> %.1f vs %.0f)", maxCount, alphaEstimate, config.sparseness));
 		return alphaEstimate;
 	}
 
@@ -2899,7 +3080,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
     }//end of calcSlope method
 
 	
-	double updateBindingModel(int left, int right, String roundLable){
+	public double updateBindingModel(int left, int right, String roundLable){
 		if (signalFeatures.size()<config.min_event_count){
 			System.err.println("\nWarning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
 			return -100;
@@ -3719,7 +3900,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         //Maximum number of components that EM can handle efficiently
         public final int MAX_NUM_COMPONENTS=1000;
         public final int OPTIMAL_NUM_COMPONENTS=100;
-        public final int INIT_SPACING=5;
+        public int INIT_SPACING=5;
         // Maximum number of EM iterations
         public final int MAX_EM_ITER=10000;
         public final int MAX_EM_ML_ITER=1;
@@ -4125,13 +4306,13 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 } catch(Exception e){
                     System.err.println("ERROR: Java Exception when analyzing region "+rr.toString());
                     e.printStackTrace(System.err);
-        			cleanUpDataLoader();
+        				cleanUpDataLoader();
                     System.exit(-1);
                 } finally{
-                	regionsRunning.remove(rr);
+                		regionsRunning.remove(rr);
                 }
                 if ((!config.process_all_regions) && goodFeatures.size()>=config.top_events*2)
-                	break;
+                		break;
             }
         }
 
@@ -4150,40 +4331,40 @@ public class KPPMixture extends MultiConditionFeatureFinder {
             Region w_padded = w.expand(modelPadding, modelPadding);
             
             if (config.strand_type ==0)	// process reads from both strands jointly
-            	results = analyzeWindow(w_padded, signals, bg_signals, seqgen, '*');
+            		results = analyzeWindow(w_padded, signals, bg_signals, seqgen, '*');
             else{	// process each single strand separately
-            	char[] strands = new char[]{'+','-'};
-            	for (char s:strands){
-            		// get stranded data
-            		ArrayList<List<StrandedBase>> signals_stranded = new ArrayList<List<StrandedBase>>();
-            		for (List<StrandedBase> l:signals){
-            			List<StrandedBase> l_s = new ArrayList<StrandedBase>();
-            			for (StrandedBase b:l)
-            				if (b.getStrand()==s)
-            					l_s.add(b);
-            			signals_stranded.add(l_s);
-            		}
-            		ArrayList<List<StrandedBase>> bg_signals_stranded = null;
-            		if (bg_signals!=null){
-            			bg_signals_stranded = new ArrayList<List<StrandedBase>>();
-	            		for (List<StrandedBase> l:bg_signals){
+	            	char[] strands = new char[]{'+','-'};
+	            	for (char s:strands){
+	            		// get stranded data
+	            		ArrayList<List<StrandedBase>> signals_stranded = new ArrayList<List<StrandedBase>>();
+	            		for (List<StrandedBase> l:signals){
 	            			List<StrandedBase> l_s = new ArrayList<StrandedBase>();
 	            			for (StrandedBase b:l)
 	            				if (b.getStrand()==s)
 	            					l_s.add(b);
-	            			bg_signals_stranded.add(l_s);
+	            			signals_stranded.add(l_s);
 	            		}
-            		}
-            		
-            		// run EM on stranded data
-            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen, s);
-            		if (results_stranded!=null){
-	            		for (BindingComponent b:results_stranded){
-	            			b.setStrand(s);		
+	            		ArrayList<List<StrandedBase>> bg_signals_stranded = null;
+	            		if (bg_signals!=null){
+	            			bg_signals_stranded = new ArrayList<List<StrandedBase>>();
+		            		for (List<StrandedBase> l:bg_signals){
+		            			List<StrandedBase> l_s = new ArrayList<StrandedBase>();
+		            			for (StrandedBase b:l)
+		            				if (b.getStrand()==s)
+		            					l_s.add(b);
+		            			bg_signals_stranded.add(l_s);
+		            		}
 	            		}
-	            		results.addAll(results_stranded);
-            		}
-            	}
+	            		
+	            		// run EM on stranded data
+	            		ArrayList<BindingComponent> results_stranded = analyzeWindow(w_padded, signals_stranded, bg_signals_stranded, seqgen, s);
+	            		if (results_stranded!=null){
+		            		for (BindingComponent b:results_stranded){
+		            			b.setStrand(s);		
+		            		}
+		            		results.addAll(results_stranded);
+	            		}
+	            	}
             }
             return results;
         } 
@@ -4211,16 +4392,16 @@ public class KPPMixture extends MultiConditionFeatureFinder {
                 if (config.use_dynamic_sparseness){
                     alpha = Math.max(estimateAlpha(w, signals), config.sparseness)*0.99;
                     if (config.noise_distribution!=0)		// have a noise model
-                    	alpha /= config.alpha_fine_factor;
+                    		alpha /= config.alpha_fine_factor;
                 }
 
                 Pair<double[][][], int[][][]> result = null;
                 
-            	//construct the positional prior for each position in this region
-            	double[] pp = new double[w.getWidth()+1];
-            	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
-            	String seq = null;
-            	char seqStrand = readStrand;
+	            	//construct the positional prior for each position in this region
+	            	double[] pp = new double[w.getWidth()+1];
+	            	KmerGroup[] pp_kmer = new KmerGroup[pp.length];
+	            	String seq = null;
+	            	char seqStrand = readStrand;
             	
 //            	if (kmac!=null && kmac.isInitialized()){
                 if (kmac!=null){

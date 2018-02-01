@@ -302,6 +302,7 @@ public class ReadDBReadLoader extends ReadLoader{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ClientException e) {
+//			int i=0;i++;
 			//Do nothing here; ClientException could be thrown because a chromosome doesn't contain any hits
 		}
 		return new Pair<ArrayList<Integer>,ArrayList<Float>>(coords, counts);
