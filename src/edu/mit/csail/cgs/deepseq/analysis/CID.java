@@ -935,7 +935,7 @@ public class CID {
 		// sort by each end so that we can search to find matches or overlaps
 		String rootName = Args.parseString(args, "out", "CID");
 		System.out.println("Running CID on "+rootName);
-		System.out.println("\nLoading ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic0));
+		System.out.println("\nLoading ChIA-PET read pairs ... ");
 		
 //		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
 //		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
@@ -1687,17 +1687,23 @@ public class CID {
 		Collections.sort(ps);
 		if (ps.size()>1) {
 			ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
-			for (int i=1;i<ps.size();i++) {
-				GPSPeak p1 = ps.get(i-1);
-				GPSPeak p2 = ps.get(i);
-				if (p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
-//						System.out.println(p1.expand(3000));
-					if (p1.getStrength()<p2.getStrength()) {
-						toRemove.add(p1);
+			for (int i=0;i<ps.size();i++) {
+				GPSPeak p1 = ps.get(i);
+				for (int j=i+1;j<ps.size();j++) {
+					GPSPeak p2 = ps.get(j);
+					if (p1.getChrom().equals(p2.getChrom()) && p1.distance(p2)<interPeakDistance) {	
+						// too close (arbitrary interPeakDistance bp), merge to the stronger peak
+						if (p1.getStrength()<p2.getStrength()) {
+							toRemove.add(p1);
+							break;		// move to next p1
+						}
+						else {
+							toRemove.add(p2);
+						}
 					}
 					else {
-						toRemove.add(p2);
-						i++;
+						i=j-1;		// j will be the next p1
+						break;
 					}
 				}
 			}
@@ -1714,17 +1720,22 @@ public class CID {
 //				Collections.sort(ps);
 //				if (ps.size()>1) {
 //					ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
-//					for (int i=1;i<ps.size();i++) {
-//						GPSPeak p1 = ps.get(i-1);
-//						GPSPeak p2 = ps.get(i);
-//						if (p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
-//	//						System.out.println(p1.expand(3000));
-//							if (p1.getStrength()<p2.getStrength()) {
-//								toRemove.add(p1);
+//					for (int i=0;i<ps.size();i++) {
+//						GPSPeak p1 = ps.get(i);
+//						for (int j=i+1;j<ps.size();j++) {
+//							GPSPeak p2 = ps.get(j);
+//							if (p1.getChrom().equals(p2.getChrom()) && p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
+//								if (p1.getStrength()<p2.getStrength()) {
+//									toRemove.add(p1);
+//									break;		// move to next p1
+//								}
+//								else {
+//									toRemove.add(p2);
+//								}
 //							}
 //							else {
-//								toRemove.add(p2);
-//								i++;
+//								i=j-1;		// j will be the next p1
+//								break;
 //							}
 //						}
 //					}
