@@ -265,9 +265,9 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		}
 		
 		// exclude some regions
-		String excludedName = Args.parseString(args, "ex", "yes");
+		String excludedName = Args.parseString(args, "ex", null);
 		int exludedLength = 0;
-		if (!excludedName.equals("yes")){
+		if (excludedName!=null){
 			excludedRegions = mergeRegions(CommonUtils.loadCgsRegionFile(excludedName, gen), false);
 			log(1, "\nExclude " + excludedRegions.size() + " regions.\n");
 			for(int c = 0; c < numConditions; c++) {

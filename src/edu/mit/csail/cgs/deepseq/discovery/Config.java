@@ -361,12 +361,12 @@ public class Config {
         q_value_threshold = Args.parseDouble(args, "q", q_value_threshold);	// q-value
         q_refine = Args.parseDouble(args, "q2", q_refine);	// q-value for refine regions
         if (q_refine==-1)
-        	q_refine = q_value_threshold*0.5;
+        		q_refine = q_value_threshold*0.5;
         else{
-        	if (q_refine>q_value_threshold){
-        		System.err.println("q2>q");
-        		throw new Exception("Invalide command line option: q2>q");
-        	}
+	        	if (q_refine>q_value_threshold){
+	        		System.err.println("q2>q");
+	        		throw new Exception("Invalide command line option: q2>q");
+	        	}
         }
         	
         sparseness = Args.parseDouble(args, "a", sparseness);	// minimum alpha parameter for sparse prior
@@ -378,7 +378,6 @@ public class Config {
         fold = Args.parseDouble(args, "fold", fold); // minimum fold enrichment IP/Control for filtering
         shapeDeviation =  TF_binding?-0.3:-0.2;		// set default according to filter type    		
         shapeDeviation = Args.parseDouble(args, "sd", shapeDeviation); // maximum shapeDeviation value for filtering
-        max_hit_per_bp = Args.parseInteger(args, "mrc", 0); //max read count per bp, default -1, estimate from data
         window_size_factor = Args.parseInteger(args, "wsf", window_size_factor);
         second_lambda_region_width = Args.parseInteger(args, "w2", second_lambda_region_width);
         third_lambda_region_width = Args.parseInteger(args, "w3", third_lambda_region_width);

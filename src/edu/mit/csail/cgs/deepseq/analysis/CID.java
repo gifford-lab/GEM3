@@ -922,7 +922,7 @@ public class CID {
 	// find interactions by 2D density clustering
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
-		String outName = Args.parseString(args, "out", "Result");
+		String outName = Args.parseString(args, "out", "CID");
 
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
@@ -933,9 +933,15 @@ public class CID {
 		// the left read is required to be lower than the right read; if not, flip 
 
 		// sort by each end so that we can search to find matches or overlaps
-		String rootName = Args.parseString(args, "out", "CID");
-		System.out.println("Running CID on "+rootName);
+		System.out.println("Running CID on "+outName);
 		System.out.println("\nLoading ChIA-PET read pairs ... ");
+		
+		String exChroms = Args.parseString(args, "ex", "M");
+		HashSet<String> excludedChroms = new HashSet<String>();
+		String exf[] = exChroms.split(",");
+		for (String s: exf) {
+			excludedChroms.add(s.trim().replace("chr", ""));
+		}
 		
 //		ArrayList<Integer> dist_minus_plus = new ArrayList<Integer>();
 //		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
@@ -970,6 +976,8 @@ public class CID {
 			if (!isBEDPE){		// cgsPoints 
 				r1 = StrandedPoint.fromString(genome, f[0]);
 				r2 = StrandedPoint.fromString(genome, f[1]);
+				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
+					continue;
 			}
 			else{	// BEDPE format
 				if (!use_1_end_reads && (f[0].charAt(0)=='*' || f[3].charAt(0)=='*'))
@@ -981,6 +989,8 @@ public class CID {
 				char strand2 = f[9].charAt(0);
 //				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
 				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), strand1=='+'?Integer.parseInt(f[4]):Integer.parseInt(f[5]), strand2);
+				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
+					continue;
 				// if not both ends are aligned properly, skip, 
 				// but if one of the read is mapped, add the read to the single-end reads object 
 				if (r1.getChrom().equals("*")){
@@ -1331,7 +1341,7 @@ public class CID {
 			
 			KPPMixture mixture = new KPPMixture(genome, expts, args);
 	        int round = 0;
-			mixture.setOutName(rootName+"_"+round);
+			mixture.setOutName(outName+"_"+round);
 	        peaks = mixture.execute();
 	        System.out.println("Called " + peaks.size() + " peaks.");
 	        mixture.printFeatures(round);
@@ -1346,12 +1356,12 @@ public class CID {
 	        if (!not_update_model){
 		        if (!constant_model_range){
 		            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), rootName+"_"+round);
+		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), outName+"_"+round);
 		        }
 		        else
-		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), rootName+"_"+round);
+		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), outName+"_"+round);
 	        }
-			mixture.setOutName(rootName+"_"+round);
+			mixture.setOutName(outName+"_"+round);
 	        peaks = mixture.execute();
 	        peaks.addAll(mixture.getInsignificantFeatures());
 	        mixture.printFeatures(round);
@@ -1362,10 +1372,10 @@ public class CID {
 	        if (!not_update_model){
 		        if (!constant_model_range){
 		            Pair<Integer, Integer> newEnds = mixture.getModel().getNewEnds(minLeft, minRight);
-		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), rootName+"_"+round);
+		            mixture.updateBindingModel(newEnds.car(), newEnds.cdr(), outName+"_"+round);
 		        }
 		        else
-		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), rootName+"_"+round);
+		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), outName+"_"+round);
 	        }
 	        System.out.println("\nDone running GPS: " + CommonUtils.timeElapsed(tic0));
 		}	// if running GPS
