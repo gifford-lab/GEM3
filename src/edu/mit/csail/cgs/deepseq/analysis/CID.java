@@ -1342,8 +1342,8 @@ public class CID {
 			KPPMixture mixture = new KPPMixture(genome, expts, args);
 	        int round = 0;
 			mixture.setOutName(outName+"_"+round);
+//			mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);  // for testing
 	        peaks = mixture.execute();
-	        System.out.println("Called " + peaks.size() + " peaks.");
 	        mixture.printFeatures(round);
 	        mixture.printFilteredFeatures(round);
             mixture.printInsignificantFeatures(round);
@@ -1377,6 +1377,7 @@ public class CID {
 		        else
 		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), outName+"_"+round);
 	        }
+	        mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);
 	        System.out.println("\nDone running GPS: " + CommonUtils.timeElapsed(tic0));
 		}	// if running GPS
 		
@@ -1452,7 +1453,7 @@ public class CID {
 //			summits.add(reads.get(maxIdx));
 		}
 		
-		System.out.println("\nSegment all PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
+		System.out.println("\nSegment all left reads into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
 		
 		/**************************

@@ -225,7 +225,7 @@ public class GEM {
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.initKMAC();	
 	        if (returnValue < 0){					// this could happen if no k value can be found to give good motif
-	        	mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
+	        		mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
 	            mixture.closeLogFile();
 	            
 	            if (returnValue == -1)

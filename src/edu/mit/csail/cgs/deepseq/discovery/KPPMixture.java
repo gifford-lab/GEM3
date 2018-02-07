@@ -59,7 +59,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	private double[] profile_minus_sum;
 	
 	HashMap<String, BindingModel> allModels = new HashMap<String, BindingModel>();
-	
+	public HashMap<String, BindingModel> getAllModels(){return allModels;}
 	// Max number of reads on a base position, to filter out towers and needles.
 	private int max_HitCount_per_base = 3;
 
@@ -3218,20 +3218,34 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		File f = new File(filename);
 		int w = 1000;
 		int h = 600;
-		int margin= 50;
-		System.setProperty("java.awt.headless", "true");
+		int margin= 30;
+		int xmargin = 20;
+		
+	    int xMin = allModels.get(outName).getMin();
+	    int xMax = allModels.get(outName).getMax();
+	    int xRange = xMax-xMin;
+	    double xRatio = ((double) xRange) / (w-2*xmargin);
+	    int numTick = 5;
+	    int tick = xRange/numTick;
+	    int tMin = xMin/tick;
+	    int tMax = xMax/tick;
+	    int zeroPixel = xmargin+(int)(Math.abs(xMin)/xRatio);
+
+	    System.setProperty("java.awt.headless", "true");
 	    BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
 	    Graphics2D g2 = (Graphics2D)im.getGraphics();
 	    g2.setRenderingHints(new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON));
 	    g2.setColor(Color.white);
 	    g2.fillRect(0, 0, w, h);	
 	    g2.setColor(Color.gray);
-	    g2.drawLine(20, h-margin, w-20, h-margin);		// x-axis
-	    g2.drawLine(w/2, margin, w/2, h-margin);	// y-axis    
+	    g2.drawLine(xmargin, h-margin, w-xmargin, h-margin);		// x-axis
+	    g2.drawLine(zeroPixel, margin, zeroPixel, h-margin);	// y-axis    
 	    g2.setFont(new Font("Arial",Font.PLAIN,16));
-	    for (int p=-2;p<=2;p++){
-	    	g2.drawLine(w/2+p*200, h-margin-10, w/2+p*200, h-margin);	// tick  
-	    	g2.drawString(""+p*200, w/2+p*200-5, h-margin+22);			// tick label
+	    
+	    for (int p=tMin;p<=tMax;p++){
+	    		int tickPixel = zeroPixel+(int)(p*tick/xRatio);
+		    	g2.drawLine(tickPixel, h-margin-10, tickPixel, h-margin);	// tick  
+		    	g2.drawString(""+p*tick,tickPixel-5, h-margin+22);			// tick label
 	    }
 	    
 	    double maxProb = 0;	    
@@ -3239,21 +3253,21 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	    rounds.addAll(allModels.keySet());
 	    Collections.sort(rounds);
 	    for (String key:rounds){
-	    	int summit = allModels.get(key).getSummit();
-	    	maxProb = Math.max(maxProb, allModels.get(key).probability(summit));
+		    	int summit = allModels.get(key).getSummit();
+		    	maxProb = Math.max(maxProb, allModels.get(key).probability(summit));
 	    }
 	    
 	    for (int i=0;i<rounds.size();i++){
-	    	BindingModel m = allModels.get(rounds.get(i));
-	    	List<Pair<Integer, Double>> points = m.getEmpiricalDistribution();
+		    	BindingModel m = allModels.get(rounds.get(i));
+		    	List<Pair<Integer, Double>> points = m.getEmpiricalDistribution();
 		    g2.setColor(colors[i % colors.length]);
 		    g2.setStroke(new BasicStroke(4));
 		    for (int p=0;p<points.size()-1;p++){
-		    	int x1=points.get(p).car()+w/2;
-		    	int y1=(int) (h-points.get(p).cdr()/maxProb*(h-margin*2)*0.8)-margin;
-		    	int x2=points.get(p+1).car()+w/2;
-		    	int y2=(int) (h-points.get(p+1).cdr()/maxProb*(h-margin*2)*0.8)-margin;
-		    	g2.drawLine(x1, y1, x2, y2);	    
+			    	int x1=zeroPixel+(int)(points.get(p).car()/xRatio);
+			    	int y1=(int) (h-points.get(p).cdr()/maxProb*(h-margin*2)*0.8)-margin;
+			    	int x2=zeroPixel+(int)(points.get(p+1).car()/xRatio);
+			    	int y2=(int) (h-points.get(p+1).cdr()/maxProb*(h-margin*2)*0.8)-margin;
+			    	g2.drawLine(x1, y1, x2, y2);	    
 		    }
 		    g2.setFont(new Font("Arial",Font.PLAIN,20));
 		    g2.drawString(new File(rounds.get(i)).getName(), w/2+50, i*25+margin+25);
