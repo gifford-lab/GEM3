@@ -1502,9 +1502,9 @@ public class CID {
 		
 		for (int j = 0; j < rs0.size(); j++) { // for all regions
 			Region region = rs0.get(j);
-//			if (region.contains(new Point(region.getGenome(), "19", 1082441)))
+//			if (region.contains(new Point(region.getGenome(), "13", 23562420)))	//13:23562420-23564665
 //				j +=0;
-			
+//			
 			// get the PETs with read1 in the region, sort and merge by read2
 			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(lowEnds, region);
 			if (idx.size() > 1) {
@@ -1595,6 +1595,8 @@ public class CID {
 				Collections.sort(rpcs);
 				for (int i = 0; i < rpcs.size(); i++) {
 					ReadPairCluster c1 = rpcs.get(i);
+//					if (c1.leftRegion.overlaps(new Region(genome, "13", 23562420, 23564665)))	//13:23562420-23564665
+//						i+=0;
 					ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
 					int c1Span = c1.span;
 					if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
@@ -1659,16 +1661,38 @@ public class CID {
 
 		// refresh the PETs again because some PET1 might not be
 		// included but are within the cluster_merge_dist range
-		// also expand the anchor for half of the cluster_merge_dist
+		HashSet<ReadPair> unusedPET2 = new HashSet<ReadPair>();
+		unusedPET2.addAll(low);
 		for (ReadPairCluster cc : clustersCalled) {
+			unusedPET2.removeAll(cc.pets);
+		}
+		
+		for (ReadPairCluster cc : clustersCalled) {
+//			if (cc.leftRegion.contains(new Point(genome, "13", 23562486)) && cc.rightRegion.contains(new Point(genome, "13", 23746753))) {	//13:23562486 13:23746753
+//				System.out.println(cc.pets.size());
+//				System.out.println(cc.leftRegion.toString()+cc.rightRegion.toString());
+//				for (ReadPair rp: cc.pets) 
+//					System.out.println(rp.toString());
+//				dc+=0;
+//			}
+//			int c = cc.pets.size();
 			ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion);
-			cc.pets.clear();
+//			cc.pets.clear();
 			for (int i : idx2) {
 				ReadPair rp = low.get(i);
-				if (cc.rightRegion.contains(rp.r2))
+				if (cc.rightRegion.contains(rp.r2) && unusedPET2.contains(rp))
 					cc.addReadPair(rp);
 			}
 			cc.update(false);
+//			if (cc.pets.size()!=c)
+//				System.out.println(String.format("%d --> %d: %s -- %s", c, cc.pets.size(), cc.leftRegion.toString(), cc.rightRegion.toString()));
+//			if (cc.leftRegion.contains(new Point(genome, "13", 23562486)) && cc.rightRegion.contains(new Point(genome, "13", 23746753))) {	//13:23562486 13:23746753
+//				System.out.println(cc.pets.size());
+//				System.out.println(cc.leftRegion.toString()+cc.rightRegion.toString());
+//				for (ReadPair rp: cc.pets) 
+//					System.out.println(rp.toString());
+//				dc+=0;
+//			}
 		}
 		
 //		ArrayList<Region> rs = new ArrayList<Region>();
@@ -1688,77 +1712,81 @@ public class CID {
 		// Get GPS peak calls
 		int interPeakDistance = Args.parseInteger(args, "ipd", 1000);
 		ArrayList<Point> hits = new ArrayList<Point>();
-		List<GPSPeak> ps = new ArrayList<GPSPeak>();
-		for (Feature f: peaks) {
-			ComponentFeature cf = (ComponentFeature)f;
-			Point p = cf.getPeak();
-			ps.add(new GPSPeak(p.getGenome(), p.getChrom(), p.getLocation(), cf.getTotalEventStrength()));
-		}
-		Collections.sort(ps);
-		if (ps.size()>1) {
-			ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
-			for (int i=0;i<ps.size();i++) {
-				GPSPeak p1 = ps.get(i);
-				for (int j=i+1;j<ps.size();j++) {
-					GPSPeak p2 = ps.get(j);
-					if (p1.getChrom().equals(p2.getChrom()) && p1.distance(p2)<interPeakDistance) {	
-						// too close (arbitrary interPeakDistance bp), merge to the stronger peak
-						if (p1.getStrength()<p2.getStrength()) {
-							toRemove.add(p1);
-							break;		// move to next p1
+		if (peaks!=null) {		// have run GPS
+			List<GPSPeak> ps = new ArrayList<GPSPeak>();
+			for (Feature f: peaks) {
+				ComponentFeature cf = (ComponentFeature)f;
+				Point p = cf.getPeak();
+				ps.add(new GPSPeak(p.getGenome(), p.getChrom(), p.getLocation(), cf.getTotalEventStrength()));
+			}
+			Collections.sort(ps);
+			if (ps.size()>1) {
+				ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
+				for (int i=0;i<ps.size();i++) {
+					GPSPeak p1 = ps.get(i);
+					for (int j=i+1;j<ps.size();j++) {
+						GPSPeak p2 = ps.get(j);
+						if (p1.getChrom().equals(p2.getChrom()) && p1.distance(p2)<interPeakDistance) {	
+							// too close (arbitrary interPeakDistance bp), merge to the stronger peak
+							if (p1.getStrength()<p2.getStrength()) {
+								toRemove.add(p1);
+								break;		// move to next p1
+							}
+							else {
+								toRemove.add(p2);
+							}
 						}
 						else {
-							toRemove.add(p2);
+							i=j-1;		// j will be the next p1
+							break;
 						}
 					}
-					else {
-						i=j-1;		// j will be the next p1
-						break;
-					}
 				}
+				ps.removeAll(toRemove);
 			}
-			ps.removeAll(toRemove);
+			hits.addAll(ps);
 		}
-		hits.addAll(ps);
-		
-//		// load GPS calls, for easy testing
-//		String fileString = Args.parseString(args, "GPS", null);
-//		if (fileString!=null) {
-//			File gpsFile = new File(fileString);
-//			try {
-//				List<GPSPeak> ps = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
-//				Collections.sort(ps);
-//				if (ps.size()>1) {
-//					ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
-//					for (int i=0;i<ps.size();i++) {
-//						GPSPeak p1 = ps.get(i);
-//						for (int j=i+1;j<ps.size();j++) {
-//							GPSPeak p2 = ps.get(j);
-//							if (p1.getChrom().equals(p2.getChrom()) && p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
-//								if (p1.getStrength()<p2.getStrength()) {
-//									toRemove.add(p1);
-//									break;		// move to next p1
-//								}
-//								else {
-//									toRemove.add(p2);
-//								}
-//							}
-//							else {
-//								i=j-1;		// j will be the next p1
-//								break;
-//							}
-//						}
-//					}
-//					ps.removeAll(toRemove);
-//				}
-//				hits.addAll(ps);
-//			}
-//			catch(Exception e) {}
-//		}
+		else {		// NOT run GPS, load GPS calls, for easy testing
+			String fileString = Args.parseString(args, "GPS", null);
+			if (fileString!=null) {
+				File gpsFile = new File(fileString);
+				try {
+					List<GPSPeak> ps = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+					Collections.sort(ps);
+					if (ps.size()>1) {
+						ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
+						for (int i=0;i<ps.size();i++) {
+							GPSPeak p1 = ps.get(i);
+							for (int j=i+1;j<ps.size();j++) {
+								GPSPeak p2 = ps.get(j);
+								if (p1.getChrom().equals(p2.getChrom()) && p1.distance(p2)<interPeakDistance) {	// too close (arbitrary interPeakDistance bp), merge to the stronger peak
+									if (p1.getStrength()<p2.getStrength()) {
+										toRemove.add(p1);
+										break;		// move to next p1
+									}
+									else {
+										toRemove.add(p2);
+									}
+								}
+								else {
+									i=j-1;		// j will be the next p1
+									break;
+								}
+							}
+						}
+						ps.removeAll(toRemove);
+					}
+					hits.addAll(ps);
+				}
+				catch(Exception e) {}
+			}
+		}
 		
 		// re-assign PETs 
 		ArrayList<ReadPairCluster> clustersAssigned = new ArrayList<ReadPairCluster>();
 		for (ReadPairCluster cc : clustersCalled) {
+//			if (cc.leftRegion.overlaps(new Region(genome, "13", 23562420, 23564665)))	//13:23562420-23564665
+//				dc+=0;
 			int mergeDist = span2mergingDist(cc.span);
 			ArrayList<Integer> id1 = CommonUtils.getPointsIdxWithinWindow(hits, cc.leftRegion);
 			ArrayList<Integer> id2 = CommonUtils.getPointsIdxWithinWindow(hits, cc.rightRegion);
@@ -1788,6 +1816,9 @@ public class CID {
 //			System.out.print("    Peaks #="+peakPairs.size()+": ");
 			for (int i=0;i<peakPairs.size();i++) {
 //				System.out.print(String.format("[%d] %s; ", i, peakPairs.get(i).toString()));
+				Pair<Point, Point> p = peakPairs.get(i);
+				if (p.car().getLocation()==23562486 && p.cdr().getLocation()==23746753)
+					dc+=0;
 				rpcs[i] = new ReadPairCluster();
 			}
 //			System.out.println();
@@ -1903,6 +1934,7 @@ public class CID {
 		clustersCalled.addAll(clustersAssigned);
 		
 		// finalize PET clusters
+		usedPETs.clear();
 		for (ReadPairCluster cc : clustersCalled) {
 			ArrayList<ReadPair> pets = cc.pets;
 			if (pets.size() < min_pet_count)
@@ -2983,7 +3015,8 @@ public class CID {
 
 		/**
 		 * Update the stats of the RPC. <br>
-		 * This method is usually called after a set of RPs are added.
+		 * This method is usually called after a set of RPs are added.<br>
+		 * Anchor regions and their widths will be set regardless the value of toSetAnchorPoints
 		 */
 		void update(boolean toSetAnchorPoints){
 			r1width = r1max - r1min;
