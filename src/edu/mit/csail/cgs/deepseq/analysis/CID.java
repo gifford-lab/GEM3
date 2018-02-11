@@ -1254,92 +1254,17 @@ public class CID {
 		 *************************************************************************/
 		List<Feature> peaks = null;
 		if (flags.contains("gps")) {
-			System.out.println("\nRunning GPS on single-end reads: " + CommonUtils.timeElapsed(tic0));
-			// prepare single end read data
-			ArrayList<Pair<ReadCache,ReadCache>> expts = new ArrayList<Pair<ReadCache,ReadCache>>();
-			ReadCache ipCache = new ReadCache(genome, "IP", null, null);
-			int coord = reads.get(0).getLocation();
-			int plus =0;
-			int minus =0;
-			String chrom = reads.get(0).getChrom();
-			ArrayList<Integer> coordPlus = new ArrayList<Integer>();
-			ArrayList<Integer> coordMinus = new ArrayList<Integer>();
-			ArrayList<Float> countPlus = new ArrayList<Float>();
-			ArrayList<Float> countMinus = new ArrayList<Float>();
-//			System.out.println("Total # reads = " + reads.size());
-			for (StrandedPoint p: reads) {
-				String chr = p.getChrom();
-//				if (!chr.equals("13"))
-//					continue;
-				if (chrom.equals(chr)) {
-					if (p.getLocation()==coord) {
-						if(p.getStrand()=='+')
-							plus++;
-						else
-							minus++;
-					}
-					else {
-						if (plus>0) {
-							coordPlus.add(coord);
-							countPlus.add((float)plus);
-						}
-						if (minus>0) {
-							coordMinus.add(coord);
-							countMinus.add((float)minus);
-						}	
-						coord = p.getLocation();
-						plus = 0;
-						minus = 0;
-						if(p.getStrand()=='+')
-							plus++;
-						else
-							minus++;
-					}
-				}
-				else {	// a new chrom
-					// finished previous chrom and init for the new chrom
-					if (plus>0) {
-						coordPlus.add(coord);
-						countPlus.add((float)plus);
-					}
-					if (minus>0) {
-						coordMinus.add(coord);
-						countMinus.add((float)minus);
-					}
-					coord = p.getLocation();
-					plus = 0;
-					minus = 0;
-					if(p.getStrand()=='+')
-						plus++;
-					else
-						minus++;
-					ipCache.addHits(chrom, '+', coordPlus, countPlus);
-					ipCache.addHits(chrom, '-', coordMinus, countMinus);
-					coordPlus = new ArrayList<Integer>();
-					coordMinus = new ArrayList<Integer>();
-					countPlus = new ArrayList<Float>();
-					countMinus = new ArrayList<Float>();
-					chrom = chr;
-				}
-			}
-			// finish every thing
-			if (plus>0) {
-				coordPlus.add(coord);
-				countPlus.add((float)plus);
-			}
-			if (minus>0) {
-				coordMinus.add(coord);
-				countMinus.add((float)minus);
-			}
-			ipCache.addHits(chrom, '+', coordPlus, countPlus);
-			ipCache.addHits(chrom, '-', coordMinus, countMinus);
+			boolean run_gem = false;
+		    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
+		    			|| Args.parseString(args, "seed", null)!=null)
+		    		run_gem = true;
+		    	else
+		    		System.err.println("Warning: no options (--k, --k_min & --k_max, or --seed) to run motif discovery. GPS will be run.");
 
-			ipCache.populateArrays(true);
-//			ipCache.displayStats();
-			
-			expts.add(new Pair<ReadCache,ReadCache>(ipCache, null));
-			
-			KPPMixture mixture = new KPPMixture(genome, expts, args);
+			System.out.println("\nRunning "+(run_gem?"GEM":"GPS")+" on single-end reads: " + CommonUtils.timeElapsed(tic0));
+
+			// prepare single end read data and run GEM			
+			KPPMixture mixture = new KPPMixture(genome, prepareGEMData(reads), args);
 	        int round = 0;
 			mixture.setOutName(outName+"_"+round);
 //			mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);  // for testing
@@ -1361,6 +1286,8 @@ public class CID {
 		        else
 		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), outName+"_"+round);
 	        }
+	        
+	        mixture.runKMAC();	
 			mixture.setOutName(outName+"_"+round);
 	        peaks = mixture.execute();
 	        peaks.addAll(mixture.getInsignificantFeatures());
@@ -1378,7 +1305,7 @@ public class CID {
 		            mixture.updateBindingModel(-mixture.getModel().getMin(), mixture.getModel().getMax(), outName+"_"+round);
 	        }
 	        mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);
-	        System.out.println("\nDone running GPS: " + CommonUtils.timeElapsed(tic0));
+	        System.out.println("\nDone running "+(run_gem?"GEM":"GPS")+": " + CommonUtils.timeElapsed(tic0));
 		}	// if running GPS
 		
 		
@@ -1453,7 +1380,7 @@ public class CID {
 //			summits.add(reads.get(maxIdx));
 		}
 		
-		System.out.println("\nSegment all left reads into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
+		System.out.println("\nSegment left ends of PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
 		
 		/**************************
@@ -2427,8 +2354,6 @@ public class CID {
 			Collections.sort(aPoints);
 		}
 
-		System.out.println("\nLoaded all the annotations, " + CommonUtils.timeElapsed(tic0));
-
 		System.out.println("\nAnnotate and report, " + CommonUtils.timeElapsed(tic0));
 		// report the interactions and annotations
 		StringBuilder sb = new StringBuilder();
@@ -2812,6 +2737,91 @@ public class CID {
 		CommonUtils.writeFile(cpcFile.replace("txt", "") + "annotated.txt", sb.toString());
 	}
 
+	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
+		ArrayList<Pair<ReadCache,ReadCache>> expts = new ArrayList<Pair<ReadCache,ReadCache>>();
+		ReadCache ipCache = new ReadCache(genome, "IP", null, null);
+		int coord = reads.get(0).getLocation();
+		int plus =0;
+		int minus =0;
+		String chrom = reads.get(0).getChrom();
+		ArrayList<Integer> coordPlus = new ArrayList<Integer>();
+		ArrayList<Integer> coordMinus = new ArrayList<Integer>();
+		ArrayList<Float> countPlus = new ArrayList<Float>();
+		ArrayList<Float> countMinus = new ArrayList<Float>();
+//		System.out.println("Total # reads = " + reads.size());
+		for (StrandedPoint p: reads) {
+			String chr = p.getChrom();
+//			if (!chr.equals("13"))
+//				continue;
+			if (chrom.equals(chr)) {
+				if (p.getLocation()==coord) {
+					if(p.getStrand()=='+')
+						plus++;
+					else
+						minus++;
+				}
+				else {
+					if (plus>0) {
+						coordPlus.add(coord);
+						countPlus.add((float)plus);
+					}
+					if (minus>0) {
+						coordMinus.add(coord);
+						countMinus.add((float)minus);
+					}	
+					coord = p.getLocation();
+					plus = 0;
+					minus = 0;
+					if(p.getStrand()=='+')
+						plus++;
+					else
+						minus++;
+				}
+			}
+			else {	// a new chrom
+				// finished previous chrom and init for the new chrom
+				if (plus>0) {
+					coordPlus.add(coord);
+					countPlus.add((float)plus);
+				}
+				if (minus>0) {
+					coordMinus.add(coord);
+					countMinus.add((float)minus);
+				}
+				coord = p.getLocation();
+				plus = 0;
+				minus = 0;
+				if(p.getStrand()=='+')
+					plus++;
+				else
+					minus++;
+				ipCache.addHits(chrom, '+', coordPlus, countPlus);
+				ipCache.addHits(chrom, '-', coordMinus, countMinus);
+				coordPlus = new ArrayList<Integer>();
+				coordMinus = new ArrayList<Integer>();
+				countPlus = new ArrayList<Float>();
+				countMinus = new ArrayList<Float>();
+				chrom = chr;
+			}
+		}
+		// finish every thing
+		if (plus>0) {
+			coordPlus.add(coord);
+			countPlus.add((float)plus);
+		}
+		if (minus>0) {
+			coordMinus.add(coord);
+			countMinus.add((float)minus);
+		}
+		ipCache.addHits(chrom, '+', coordPlus, countPlus);
+		ipCache.addHits(chrom, '-', coordMinus, countMinus);
+
+		ipCache.populateArrays(true);
+//		ipCache.displayStats();
+		
+		expts.add(new Pair<ReadCache,ReadCache>(ipCache, null));
+		return expts;
+	}
 	/**
 	 * Overlap CPC interaction calls with some annotation as regions.
 	 * @param args

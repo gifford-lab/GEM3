@@ -3082,7 +3082,7 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 	
 	public double updateBindingModel(int left, int right, String roundLable){
 		if (signalFeatures.size()<config.min_event_count){
-			System.err.println("\nWarning: The read distribution is not updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
+			System.err.println("\nWarning: The read distribution has not been updated, too few ("+signalFeatures.size()+"<"+config.min_event_count+") significant events.");
 			return -100;
 		}
 		int width = left+right+1;
@@ -3745,12 +3745,12 @@ public class KPPMixture extends MultiConditionFeatureFinder {
      * This is called only once for initial setup: compact the cached sequence data and init KMAC object<br>
      * If the return value is -1, KMAC is not successful, should exit the program.
      */
-    public int initKMAC(){
+    public int runKMAC(){
     	if (config.k==-1 && config.k_min==-1)
     		return -1;
 		if (signalFeatures.isEmpty())
     		return -2;
-    	System.out.println("Loading genome sequences ...");
+    		System.out.println("Loading genome sequences ...");
 //    	if (config.strand_type==1)
 //    		// use old KMAC0 for single strand discovery
 //    		kmac = new KMAC0(gen, config.cache_genome, config.use_db_genome, config.genome_path, config, outName);

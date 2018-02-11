@@ -209,8 +209,8 @@ public class GEM {
 	        mixture.releaseMemory();
         }
 
-    	currentFolder = new File(filePrefix).getParentFile().getParentFile();
-    	path = new File(currentFolder, prefix).getAbsolutePath();
+	    	currentFolder = new File(filePrefix).getParentFile().getParentFile();
+	    	path = new File(currentFolder, prefix).getAbsolutePath();
         CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.txt", path+".GPS_events.txt");
         if (Args.parseFlags(args).contains("outNP"))
         	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.narrowPeak", path+".GPS_events.narrowPeak");
@@ -223,7 +223,7 @@ public class GEM {
          **/    	
         if (run_gem){
         	// initialize first set of kmers from GPS result
-	        int returnValue = mixture.initKMAC();	
+	        int returnValue = mixture.runKMAC();	
 	        if (returnValue < 0){					// this could happen if no k value can be found to give good motif
 	        		mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
 	            mixture.closeLogFile();
@@ -338,7 +338,7 @@ public class GEM {
 	    			|| Args.parseString(args, "seed", null)!=null)
 	    		run_gem = true;
 	    	else
-	    		System.err.println("Warning: GEM did not see options (--k, --k_min & --k_max, or --seed) to run motif discovery. It will run GPS and stop!");
+	    		System.err.println("Warning: no options (--k, --k_min & --k_max, or --seed) to run motif discovery. GEM will run GPS and stop!");
 	
 	        GEM gem = new GEM(args);
 	        
