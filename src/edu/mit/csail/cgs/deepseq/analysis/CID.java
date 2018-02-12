@@ -1266,6 +1266,7 @@ public class CID {
 			// prepare single end read data and run GEM			
 			KPPMixture mixture = new KPPMixture(genome, prepareGEMData(reads), args);
 	        int round = 0;
+	        outName = mixture.getOutName();		// get the new path with GEM_output folder
 			mixture.setOutName(outName+"_"+round);
 //			mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);  // for testing
 	        peaks = mixture.execute();
@@ -1306,6 +1307,7 @@ public class CID {
 	        }
 	        mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);
 	        System.out.println("\nDone running "+(run_gem?"GEM":"GPS")+": " + CommonUtils.timeElapsed(tic0));
+	        outName = Args.parseString(args, "out", "CID");		// set outName back to the original
 		}	// if running GPS
 		
 		

@@ -438,6 +438,27 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		commonInit(modelFile);
 		constants.INIT_SPACING = 10;
 		
+		// make the GEM output folder
+		File outFile = new File(outName);
+		String outPrefix = outFile.getAbsoluteFile().getName();	
+		
+		File parentFolder = outFile.getParentFile();
+		File gem_outputs_folder;
+		if (parentFolder!=null){
+			if (!parentFolder.exists()){
+				System.err.println("\nThe output file path is not correct: "+outFile.getAbsolutePath());
+				cleanUpDataLoader();
+				System.exit(-1);
+			}
+			gem_outputs_folder = new File(parentFolder, outPrefix+".GEM_outputs");
+		}
+		else{
+			gem_outputs_folder = new File(outPrefix+".GEM_outputs");
+		}		
+		gem_outputs_folder.mkdir();		// create xxx.GEM_outputs folder
+		outName = new File(gem_outputs_folder, outPrefix).getAbsolutePath();	// re-direct outName prefix to a folder
+
+		
 		model.printToFile(outName+"_0.Read_distribution.txt");
 		allModels.put(outName+"_0", model);
 		
