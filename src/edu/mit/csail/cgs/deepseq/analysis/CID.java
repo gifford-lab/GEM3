@@ -1254,7 +1254,7 @@ public class CID {
 		 *  run GPS/GEM to calling peaks (for improving spatial accuracy)
 		 *************************************************************************/
 		List<Feature> peaks = null;
-		if (flags.contains("gps")) {
+		if (flags.contains("gem")) {
 			boolean run_gem = false;
 		    	if (Args.parseInteger(args,"k", -1)!=-1 || Args.parseInteger(args,"k_min", -1)!=-1 || Args.parseInteger(args,"kmin", -1)!=-1
 		    			|| Args.parseString(args, "seed", null)!=null)
@@ -1270,9 +1270,8 @@ public class CID {
 	        outName = mixture.getOutName();		// get the new path with GEM_output folder
 			mixture.setOutName(outName+"_"+round);
 //			mixture.plotAllReadDistributions(mixture.getAllModels(), outName+"_"+round);  // for testing
-	        peaks = mixture.execute();
+	        mixture.execute();
 	        mixture.printFeatures(round);
-	        mixture.printFilteredFeatures(round);
             mixture.printInsignificantFeatures(round);
 	        mixture.releaseMemory();
 	        round++;
@@ -1294,7 +1293,6 @@ public class CID {
 	        peaks = mixture.execute();
 	        peaks.addAll(mixture.getInsignificantFeatures());
 	        mixture.printFeatures(round);
-	        mixture.printFilteredFeatures(round);
             mixture.printInsignificantFeatures(round);
 	        mixture.releaseMemory();
 	        round++;
@@ -1675,11 +1673,12 @@ public class CID {
 			hits.addAll(ps);
 		}
 		else {		// NOT run GPS, load GPS calls, for easy testing
-			String fileString = Args.parseString(args, "GPS", null);
+			String fileString = Args.parseString(args, "GEM", null);
 			if (fileString!=null) {
 				File gpsFile = new File(fileString);
 				try {
 					List<GPSPeak> ps = GPSParser.parseGPSOutput(gpsFile.getAbsolutePath(), genome);
+					System.out.println("Loaded "+ps.size()+" GEM events.");
 					Collections.sort(ps);
 					if (ps.size()>1) {
 						ArrayList<GPSPeak> toRemove = new ArrayList<GPSPeak>();
@@ -1711,6 +1710,9 @@ public class CID {
 		}
 		
 		// re-assign PETs 
+		// 1. get the peaks within the two anchors. only use insignificant event if there are no significant events.
+		// 2. pairing peaks in the left and right anchors, assign PETs to the nearest peak-pairs
+		// 3. merge the nearby peak-pairs, the one with more PETs assigned wins and takes over the PETs from the other peak-pair
 		ArrayList<ReadPairCluster> clustersAssigned = new ArrayList<ReadPairCluster>();
 		for (ReadPairCluster cc : clustersCalled) {
 //			if (cc.leftRegion.overlaps(new Region(genome, "13", 23562420, 23564665)))	//13:23562420-23564665
@@ -1718,9 +1720,27 @@ public class CID {
 			int mergeDist = span2mergingDist(cc.span);
 			ArrayList<Integer> id1 = CommonUtils.getPointsIdxWithinWindow(hits, cc.leftRegion);
 			ArrayList<Integer> id2 = CommonUtils.getPointsIdxWithinWindow(hits, cc.rightRegion);
+			boolean sig1 = false;	// if true, at least one significant event in this region
+			for (int i: id1) {
+				if (((GPSPeak) hits.get(i)).getQV_lg10()>=2) {
+					sig1=true;
+					break;
+				}
+			}
+			boolean sig2 = false;	// if true, at least one significant event in this region
+			for (int i: id2) {
+				if (((GPSPeak) hits.get(i)).getQV_lg10()>=2) {
+					sig2=true;
+					break;
+				}
+			}
 			ArrayList<Pair<Point,Point>> peakPairs = new ArrayList<Pair<Point,Point>>();
 			for (int i1: id1) {
+				if (sig1 && ((GPSPeak) hits.get(i1)).getQV_lg10()<2)	// if 1+ significant event, skip insig events
+					continue;
 				for (int i2: id2) {
+					if (sig2 && ((GPSPeak) hits.get(i2)).getQV_lg10()<2)
+						continue;
 					Point p1 = hits.get(i1);
 					Point p2 = hits.get(i2);
 					int offset = p2.getLocation()-p1.getLocation();

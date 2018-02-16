@@ -487,6 +487,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
         }
         config.third_lambda_region_width = model.getWidth()*20; 
         config.second_lambda_region_width = model.getWidth()*10; 
+        config.filterEvents = false;
+        
     		// for Pol2 data, more broad region, more homotypic peaks, use smaller alpha, thus larger af
 //        config.alpha_factor = 10;
         
