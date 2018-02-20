@@ -3158,6 +3158,9 @@ public class CID {
 		}
 
 		public int compareByAnchorPoints(ReadPairCluster rpc) {
+			int chromCompare = this.leftPoint.getChrom().compareTo(rpc.leftPoint.getChrom());
+			if (chromCompare!=0)
+				return chromCompare;
 			int offset  = this.leftPoint.offset(rpc.leftPoint);
 			if (offset>0)
 				return 1;
