@@ -1572,6 +1572,8 @@ public class CID {
 //				continue;	// if c1 anchors are too wide, skip merging c1
 			for (int jj = i+1; jj < clustersCalled.size(); jj++) {
 				ReadPairCluster c2 = clustersCalled.get(jj);
+				if (!c1.leftPoint.getChrom().equals(c2.leftPoint.getChrom()))
+					break;
 				int span = Math.max(c1.span, c2.span);
 				int merge_dist = span2mergingDist(span);
 				if (c1.leftPoint.distance(c2.leftPoint)>merge_dist*2)	// too far (tmp is sorted by left then right points)
