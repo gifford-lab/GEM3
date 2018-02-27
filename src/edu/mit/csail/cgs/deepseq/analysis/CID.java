@@ -1561,7 +1561,7 @@ public class CID {
 			int num = clustersCalled.size();
 			Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
 				public int compare(ReadPairCluster o1, ReadPairCluster o2) {
-					return o1.compareByAnchorPoints(o2);
+					return o1.compareByLeftAnchorPoint(o2);
 				}
 			});
 			for (int i = 0; i < clustersCalled.size(); i++) {
@@ -1622,21 +1622,16 @@ public class CID {
 	//					dc+=0;
 	//				}
 					
-	//				if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
-	//					break;		// if c1 anchors are too wide, stop merging c1
 				} // for each c1 and c2
 				if (!toRemoveClusters.isEmpty()){
 					clustersCalled.removeAll(toRemoveClusters);
 					toRemoveClusters.clear();
 				}
-				toRemoveClusters = null;
 			} // for each c1
 			
 			// if no change, break
 			if (clustersCalled.size()==num)
 				break;
-//			else
-//				System.err.println(num+" ==> "+clustersCalled.size());
 		} // while true
 		
 		// refresh the PETs again because some PET1 might not be
@@ -1647,31 +1642,13 @@ public class CID {
 			unusedPET2.removeAll(cc.pets);
 		}
 		for (ReadPairCluster cc : clustersCalled) {
-//			if (cc.leftRegion.contains(new Point(genome, "13", 23562486)) && cc.rightRegion.contains(new Point(genome, "13", 23746753))) {	//13:23562486 13:23746753
-//				System.out.println(cc.pets.size());
-//				System.out.println(cc.leftRegion.toString()+cc.rightRegion.toString());
-//				for (ReadPair rp: cc.pets) 
-//					System.out.println(rp.toString());
-//				dc+=0;
-//			}
-//			int c = cc.pets.size();
 			ArrayList<Integer> idx2 = CommonUtils.getPointsIdxWithinWindow(lowEnds, cc.leftRegion);
-//			cc.pets.clear();
 			for (int i : idx2) {
 				ReadPair rp = low.get(i);
 				if (cc.rightRegion.contains(rp.r2) && unusedPET2.contains(rp))
 					cc.addReadPair(rp);
 			}
 			cc.update(false);
-//			if (cc.pets.size()!=c)
-//				System.out.println(String.format("%d --> %d: %s -- %s", c, cc.pets.size(), cc.leftRegion.toString(), cc.rightRegion.toString()));
-//			if (cc.leftRegion.contains(new Point(genome, "13", 23562486)) && cc.rightRegion.contains(new Point(genome, "13", 23746753))) {	//13:23562486 13:23746753
-//				System.out.println(cc.pets.size());
-//				System.out.println(cc.leftRegion.toString()+cc.rightRegion.toString());
-//				for (ReadPair rp: cc.pets) 
-//					System.out.println(rp.toString());
-//				dc+=0;
-//			}
 		}
 		
 		// check how large the total anchor regions are
@@ -1952,6 +1929,30 @@ public class CID {
 		}
 		clustersCalled.clear();
 		clustersCalled.addAll(clustersAssigned);
+		
+		// merge the same-anchorPoints calls (some may occur due to GEM assignment)  
+		Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
+			public int compare(ReadPairCluster o1, ReadPairCluster o2) {
+				return o1.compareByBothAnchorPoints(o2);
+			}
+		});
+		ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
+		for (int i = 0; i < clustersCalled.size()-1; i++) {
+			ReadPairCluster c1 = clustersCalled.get(i);
+			ReadPairCluster c2 = clustersCalled.get(i+1);
+			if (c1.compareByBothAnchorPoints(c2)==0)	{
+//				System.err.println(c1.toString() + "***"+c2.toString());
+				if (c1.pets.size()<c2.pets.size()) {		// merge to c1, if it is smaller size, overwrite with c2 infos
+					c1.d_c = c2.d_c;
+				}
+				for(ReadPair rp: c2.pets)
+					c1.addReadPair(rp);
+				c1.update(false);
+				c2.pets.clear();
+				toRemoveClusters.add(c2);
+			}
+		}
+		clustersCalled.removeAll(toRemoveClusters);
 		
 		// finalize PET clusters
 		usedPETs.clear();
@@ -3168,7 +3169,7 @@ public class CID {
 			pets.add(rp);
 		}
 
-		public int compareByAnchorPoints(ReadPairCluster rpc) {
+		public int compareByLeftAnchorPoint(ReadPairCluster rpc) {
 			int chromCompare = this.leftPoint.getChrom().compareTo(rpc.leftPoint.getChrom());
 			if (chromCompare!=0)
 				return chromCompare;
@@ -3179,6 +3180,18 @@ public class CID {
 				return -1;
 			else
 				return 0;
+		}
+		public int compareByBothAnchorPoints(ReadPairCluster rpc) {
+			int chromCompare = this.leftPoint.getChrom().compareTo(rpc.leftPoint.getChrom());
+			if (chromCompare!=0)
+				return chromCompare;
+			int offset  = this.leftPoint.offset(rpc.leftPoint);
+			if (offset>0)
+				return 1;
+			else if (offset<0)
+				return -1;
+			else
+				return this.rightPoint.compareTo(rpc.rightPoint);
 		}
 		
 		@Override
