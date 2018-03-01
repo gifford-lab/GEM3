@@ -923,7 +923,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180220\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180301\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -1930,7 +1930,7 @@ public class CID {
 		clustersCalled.clear();
 		clustersCalled.addAll(clustersAssigned);
 		
-		// merge the same-anchorPoints calls (some may occur due to GEM assignment)  
+		// merge the same-anchorPoints calls (although rare, it may occur due to the GEM assignment)  
 		Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
 			public int compare(ReadPairCluster o1, ReadPairCluster o2) {
 				return o1.compareByBothAnchorPoints(o2);
@@ -1941,15 +1941,14 @@ public class CID {
 			ReadPairCluster c1 = clustersCalled.get(i);
 			ReadPairCluster c2 = clustersCalled.get(i+1);
 			if (c1.compareByBothAnchorPoints(c2)==0)	{
-//				System.err.println(c1.toString() + "***"+c2.toString());
-				if (c1.pets.size()<c2.pets.size()) {		// merge to c1, if it is smaller size, overwrite with c2 infos
-					c1.d_c = c2.d_c;
+				if (c1.pets.size()>c2.pets.size()) {		// merge to c2, if it is smaller size, copy c1 infos
+					c2.d_c = c1.d_c;
 				}
-				for(ReadPair rp: c2.pets)
-					c1.addReadPair(rp);
-				c1.update(false);
-				c2.pets.clear();
-				toRemoveClusters.add(c2);
+				for(ReadPair rp: c1.pets)
+					c2.addReadPair(rp);
+				c2.update(false);
+				c1.pets.clear();
+				toRemoveClusters.add(c1);
 			}
 		}
 		clustersCalled.removeAll(toRemoveClusters);
@@ -2788,7 +2787,7 @@ public class CID {
 	 */
 	private static void annotateRegions(String[] args) {
 		Genome genome = CommonUtils.parseGenome(args);
-		String cpcFile = Args.parseString(args, "cpc", null);
+		String cidFile = Args.parseString(args, "cid", null);
 		String bed1File = Args.parseString(args, "bed1", null);
 		String bed2File = Args.parseString(args, "bed2", null);
 		int win = Args.parseInteger(args, "win", 1500);
@@ -2796,12 +2795,16 @@ public class CID {
 		Pair<ArrayList<Region>, ArrayList<String>> tmp = CommonUtils.load_BED_regions(genome, bed1File);
 		ArrayList<Region> r1s = tmp.car();
 		ArrayList<String> s1s = tmp.cdr();
-
+		if (s1s.isEmpty())
+			for (Region r: r1s)
+				s1s.add(r.toString());
 		tmp = CommonUtils.load_BED_regions(genome, bed2File);
 		ArrayList<Region> r2s = tmp.car();
 		ArrayList<String> s2s = tmp.cdr();
-
-		ArrayList<String> lines = CommonUtils.readTextFile(cpcFile);
+		if (s2s.isEmpty())
+			for (Region r: r2s)
+				s2s.add(r.toString());
+		ArrayList<String> lines = CommonUtils.readTextFile(cidFile);
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < lines.size(); i++) {
 			String t = lines.get(i);
@@ -2817,17 +2820,17 @@ public class CID {
 				sb.append(s1s.get(id)).append(",");
 			if (idx1.isEmpty())
 				sb.append("NULL");
-			sb.append("\t");
+			sb.append("\t").append(idx1.size()).append("\t");
 			for (int id : idx2)
 				sb.append(s2s.get(id)).append(",");
 			if (idx2.isEmpty())
 				sb.append("NULL");
-			sb.append("\t").append(idx1.size()).append("\t").append(idx2.size()).append("\t");
+			sb.append("\t").append(idx2.size()).append("\n");
 			// field 10 (i.e. 11th): ChIA-PET PET count; the last field: ChIA-PET q value
-			sb.append(f[10]).append("\t").append(f[f.length - 1]);
-			sb.append("\n");
+//			sb.append(f[10]).append("\t").append(f[f.length - 1]);
+//			sb.append("\n");
 		}
-		CommonUtils.writeFile(cpcFile.replace("txt", "") + "annotated.txt", sb.toString());
+		CommonUtils.writeFile(cidFile.replace("txt", "") + "annotated.txt", sb.toString());
 	}
 
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
