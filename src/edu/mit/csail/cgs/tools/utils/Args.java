@@ -378,7 +378,30 @@ public class Args {
         }
         return output;
     }
-
+    /**
+     * parses ChipSeqLocators from a readdb name.  <br>Takes only "name;replicate;alignment".<br>
+     * A readdb meta file is loaded from --readdb parameter to look up the alignment id of the readdb name.
+     * @see edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator
+     */    
+    public static ChipSeqLocator parseChipSeq(String readdbName, String args[]) {
+		if (readdbName2Id.isEmpty()) {
+			for (int i = 0; i < args.length; i++) {
+	            if (args[i].equals("--readdb")) {
+	            		ArrayList<String> lines = CommonUtils.readTextFile(args[i+1]);
+	            		for (String line: lines) {
+	            			String[] fs = line.trim().split("\t");
+	            			readdbName2Id.put(fs[1], fs[4]);
+	            		}
+	            }
+			}
+		}
+		
+		if (readdbName2Id.containsKey(readdbName)) 
+			 return new ChipSeqLocator(readdbName2Id.get(readdbName));
+	    else
+	        throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + readdbName);
+    }
+    
     public static Collection<ChipSeqAnalysis> parseChipSeqAnalyses(String args[], String argname) throws NotFoundException {
         Collection<String> bases = parseStrings(args,argname);
         Collection<ChipSeqAnalysis> out = new ArrayList<ChipSeqAnalysis>();

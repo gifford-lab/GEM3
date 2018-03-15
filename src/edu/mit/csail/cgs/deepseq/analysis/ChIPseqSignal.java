@@ -2,6 +2,7 @@ package edu.mit.csail.cgs.deepseq.analysis;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import edu.mit.csail.cgs.datasets.chipseq.ChipSeqLocator;
@@ -67,24 +68,32 @@ public class ChIPseqSignal {
 		}
 		all_coords.trimToSize();
 
+		// only the chromsomes in the coords list
+		HashSet<String> usedChroms = new HashSet<String>();
+		for (Point p: all_coords)
+			usedChroms.add(p.getChrom());
+		List<String> chroms = genome.getChromList();
+		chroms.retainAll(usedChroms);
+		if (dev){
+			chroms = new ArrayList<String>();
+			chroms.add("19");
+		}
+
 		int[][]signals = new int[all_coords.size()][expts.size()];
 		for (int i=0;i<expts.size();i++){
 			if (isReadDB.get(i)){		// readdb
 				String readdb_name = data_locations.get(i);
 				int rr = radius.get(i);
 				
-				List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,readdb_name);
+				List<ChipSeqLocator> rdbexpts = new ArrayList<ChipSeqLocator>();
+				rdbexpts.add(Args.parseChipSeq(readdb_name, args));
 	            DeepSeqExpt ip = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
 	            ReadCache ipCache = new ReadCache(genome, expts.get(i), null, null);
 	            
 				// cache sorted start positions and counts of all positions
 				long tic = System.currentTimeMillis();
 				System.err.print("Loading "+ipCache.getName()+" data from ReadDB ... \t");
-				List<String> chroms = genome.getChromList();
-				if (dev){
-					chroms = new ArrayList<String>();
-					chroms.add("19");
-				}
+
 				// load  data into cache by chroms or smaller chunks.
 				for (String chrom: chroms ){
 					int length = genome.getChromLength(chrom);
