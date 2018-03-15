@@ -73,15 +73,7 @@ public class ChIPseqSignal {
 				String readdb_name = data_locations.get(i);
 				int rr = radius.get(i);
 				
-				List<ChipSeqLocator> rdbexpts = new ArrayList<ChipSeqLocator>();
-				String[] pieces = readdb_name.trim().split(";");
-	            if (pieces.length == 2) {
-	            	rdbexpts.add(new ChipSeqLocator(pieces[0], pieces[1]));
-	            } else if (pieces.length == 3) {
-	            	rdbexpts.add(new ChipSeqLocator(pieces[0], pieces[1], pieces[2]));
-	            } else {
-	                throw new RuntimeException("Couldn't parse a ChipSeqLocator from " + readdb_name);
-	            }
+				List<ChipSeqLocator> rdbexpts = Args.parseChipSeq(args,readdb_name);
 	            DeepSeqExpt ip = new DeepSeqExpt(genome, rdbexpts, "readdb", -1);
 	            ReadCache ipCache = new ReadCache(genome, expts.get(i), null, null);
 	            

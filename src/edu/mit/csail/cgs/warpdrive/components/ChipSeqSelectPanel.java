@@ -74,6 +74,11 @@ public class ChipSeqSelectPanel extends GenericSelectPanel<ChipSeqLocator> {
     }
 
     public void retrieveData() {
+    		if (readdb==null) {
+    			System.err.println("No readdb file to populate the table.");
+    			return;
+    		}
+    		
         synchronized(locators) {
             locators.clear();
 //            System.err.println("Getting all alignments from retrieveData()");
