@@ -1,7 +1,10 @@
 package edu.mit.csail.cgs.deepseq.analysis;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -947,17 +950,7 @@ public class CID {
 //		ArrayList<Integer> dist_plus_minus = new ArrayList<Integer>();
 //		ArrayList<Integer> dist_minus_minus = new ArrayList<Integer>();
 //		ArrayList<Integer> dist_plus_plus = new ArrayList<Integer>();
-
-		ArrayList<String> read_pair_lines = CommonUtils.readTextFile(Args.parseString(args, "data", null));
-		String[] f1 = read_pair_lines.get(0).split("\t");
-		boolean isBEDPE = f1.length >= 6;
-		if (isBEDPE){
-			System.out.println("\nDetected input data to be BEDPE format!");
-			if (f1.length<10){
-				System.err.println("Wrong BEDPE format. The columns 9 and 10 should be the strand information of the two read ends.");
-				System.exit(-1);
-			}
-		}
+		
 		// store single ends
 		// intra-chrom long PETs: always keep
 		// inter-chrom PETs: keep if considering inter-chrom interactions
@@ -968,85 +961,117 @@ public class CID {
 		// all PETs sorted by the low end
 		ArrayList<ReadPair> low = new ArrayList<ReadPair>(); 
 		ArrayList<ReadPair> high = new ArrayList<ReadPair>(); // sort high end
-		StrandedPoint tmp1 = null;
-		for (String s : read_pair_lines) {
-			String[] f = s.split("\t");
-			StrandedPoint r1;
-			StrandedPoint r2;
-			if (!isBEDPE){		// cgsPoints 
-				r1 = StrandedPoint.fromString(genome, f[0]);
-				r2 = StrandedPoint.fromString(genome, f[1]);
-				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
-					continue;
-			}
-			else{	// BEDPE format
-				if (!use_1_end_reads && (f[0].charAt(0)=='*' || f[3].charAt(0)=='*'))
-					continue;
-				
-				char strand1 = f[8].charAt(0);
-//				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
-				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), strand1=='+'?Integer.parseInt(f[1]):Integer.parseInt(f[2]), strand1);
-				char strand2 = f[9].charAt(0);
-//				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
-				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), strand1=='+'?Integer.parseInt(f[4]):Integer.parseInt(f[5]), strand2);
-				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
-					continue;
-				// if not both ends are aligned properly, skip, 
-				// but if one of the read is mapped, add the read to the single-end reads object 
-				if (r1.getChrom().equals("*")){
-					// add read2 as single-end if mapped
-					if (!r2.getChrom().equals("*"))	
-						reads.add(r2);
-					continue;
-				}
-				if (r2.getChrom().equals("*")){
-					// add read1 as single end if mapped
-					if (!r1.getChrom().equals("*")) 
-						reads.add(r1);
-					continue;
-				}
-			}
-			
-			// TODO: change next line if predicting inter-chrom interactions
-			// r1 and r2 should be on the same chromosome for PETs
-			if (!r1.getChrom().equals(r2.getChrom())) 
-				continue;
-			
-			// DO NOT  treat inter-chrom reads as single-end reads
-			// TODO: should we???
-			reads.add(r1);
-			reads.add(r2);
-			
-			int dist = r1.distance(r2);
-			if (dist < min_span)
-				continue;
-			if (r1.getLocation() > r2.getLocation()){	// r1 should be lower than r2
-				tmp1 = r1;
-				r2 = r1;
-				r1 = tmp1;
-			}
-//			// count PETs by strand-orientation
-//			if (r1.getStrand() == '-') {
-//				if (r2.getStrand() == '+')
-//					dist_minus_plus.add(dist);
-//				else if (r2.getStrand() == '-')
-//					dist_minus_minus.add(dist);
-//			} else if (r1.getStrand() == '+') {
-//				if (r2.getStrand() == '+')
-//					dist_plus_plus.add(dist);
-//				else if (r2.getStrand() == '-')
-//					dist_plus_minus.add(dist);
-//			}
 
-			ReadPair rp = new ReadPair();
-			rp.r1 = r1;
-			rp.r2 = r2;
-			low.add(rp);
-			ReadPair rp2 = new ReadPair();
-			rp2.r1 = r1;
-			rp2.r2 = r2;
-			high.add(rp2);
-		}
+		try {	
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(Args.parseString(args, "data", null)))));
+	        String line;
+	        bin.mark(1000);
+	        int numFields  = bin.readLine().split("\t").length;
+	        boolean isBEDPE = numFields >= 6;
+	    		if (isBEDPE){
+	    			System.out.println("\nDetected input data to be BEDPE format!");
+	    			if (numFields<10){
+	    				System.err.println("Wrong BEDPE format. The columns 9 and 10 should be the strand information of the two read ends.");
+	    				System.exit(-1);
+	    			}
+	    		}
+	    		bin.reset();
+	    		
+	    		StrandedPoint tmp1 = null;
+	        while((line = bin.readLine()) != null) { 
+	            line = line.trim();
+	    			String[] f = line.split("\t");
+	    			StrandedPoint r1;
+	    			StrandedPoint r2;
+	    			if (!isBEDPE){		// cgsPoints 
+	    				r1 = StrandedPoint.fromString(genome, f[0]);
+	    				r2 = StrandedPoint.fromString(genome, f[1]);
+	    				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
+	    					continue;
+	    			}
+	    			else{	// BEDPE format
+	    				if (!use_1_end_reads && (f[0].charAt(0)=='*' || f[3].charAt(0)=='*'))
+	    					continue;
+	    				
+	    				char strand1 = f[8].charAt(0);
+//	    				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), (Integer.parseInt(f[1])+Integer.parseInt(f[2]))/2, strand1);
+	    				r1 = new StrandedPoint(genome, f[0].replace("chr", ""), strand1=='+'?Integer.parseInt(f[1]):Integer.parseInt(f[2]), strand1);
+	    				char strand2 = f[9].charAt(0);
+//	    				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
+	    				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), strand1=='+'?Integer.parseInt(f[4]):Integer.parseInt(f[5]), strand2);
+	    				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
+	    					continue;
+	    				// if not both ends are aligned properly, skip, 
+	    				// but if one of the read is mapped, add the read to the single-end reads object 
+	    				if (r1.getChrom().equals("*")){
+	    					// add read2 as single-end if mapped
+	    					if (!r2.getChrom().equals("*"))	
+	    						reads.add(r2);
+	    					continue;
+	    				}
+	    				if (r2.getChrom().equals("*")){
+	    					// add read1 as single end if mapped
+	    					if (!r1.getChrom().equals("*")) 
+	    						reads.add(r1);
+	    					continue;
+	    				}
+	    			}
+	    			
+	    			// TODO: change next line if predicting inter-chrom interactions
+	    			// r1 and r2 should be on the same chromosome for PETs
+	    			if (!r1.getChrom().equals(r2.getChrom())) 
+	    				continue;
+	    			
+	    			// DO NOT  treat inter-chrom reads as single-end reads
+	    			// TODO: should we???
+	    			reads.add(r1);
+	    			reads.add(r2);
+	    			
+	    			int dist = r1.distance(r2);
+	    			if (dist < min_span)
+	    				continue;
+	    			if (r1.getLocation() > r2.getLocation()){	// r1 should be lower than r2
+	    				tmp1 = r1;
+	    				r2 = r1;
+	    				r1 = tmp1;
+	    			}
+//	    			// count PETs by strand-orientation
+//	    			if (r1.getStrand() == '-') {
+//	    				if (r2.getStrand() == '+')
+//	    					dist_minus_plus.add(dist);
+//	    				else if (r2.getStrand() == '-')
+//	    					dist_minus_minus.add(dist);
+//	    			} else if (r1.getStrand() == '+') {
+//	    				if (r2.getStrand() == '+')
+//	    					dist_plus_plus.add(dist);
+//	    				else if (r2.getStrand() == '-')
+//	    					dist_plus_minus.add(dist);
+//	    			}
+
+	    			ReadPair rp = new ReadPair();
+	    			rp.r1 = r1;
+	    			rp.r2 = r2;
+	    			low.add(rp);
+	    			ReadPair rp2 = new ReadPair();
+	    			rp2.r1 = r1;
+	    			rp2.r2 = r2;
+	    			high.add(rp2);
+	    		}
+	        if (bin != null) {
+	            bin.close();
+	        }
+        } catch (IOException e) {
+	        	if (e instanceof java.io.FileNotFoundException){
+	        		System.err.println("\nFile not found: "+fileName);
+	        		System.exit(-1);
+	        	}
+	        	else{
+		        	System.err.println("\nError when processing "+fileName);
+		            e.printStackTrace(System.err);
+	        	}
+        }   
+
+
 
 		low.trimToSize();
 		high.trimToSize();
