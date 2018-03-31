@@ -79,7 +79,7 @@ public class CID {
 
 	public static void main(String args[]) {
 		CID analysis = new CID(args);
-		int type = Args.parseInteger(args, "type", 3);
+		int type = Args.parseInteger(args, "type", 1);
 
 		switch (type) {
 		case 0:
@@ -87,17 +87,11 @@ public class CID {
 			analysis.countGenesPerRegion();
 			analysis.StatsTAD();
 			break;
-		case 1: // count distal read pairs per gene (old: step1)
-			analysis.countReadPairs();
-			break;
-		case 2: // count distal read pairs per gene (old: step2)
-			analysis.clusterDistalReads();
-			break;
-		case 3: // region (1D merged-read) based clustering
+		case 1: // region (1D merged-read) based clustering
 			analysis.findAllInteractions();
 			break;
-		case 30: // region (1D merged-read) based clustering
-//			analysis.findAllInteractionsMerging();
+		case 2: 
+			enhancers2genes(args);
 			break;
 		case 4: // find gene-based dense cluster of read pairs
 			postProcessing(args);
@@ -487,436 +481,6 @@ public class CID {
 				sb.toString());
 	}
 
-	private void countReadPairs() {
-		long tic = System.currentTimeMillis();
-		HashSet<String> geneSet = new HashSet<String>();
-		String gString = Args.parseString(args, "genes", null);
-		if (gString == null) {
-			String gFile = Args.parseString(args, "gene_file", null);
-			ArrayList<String> lines = CommonUtils.readTextFile(gFile);
-			for (String g : lines)
-				geneSet.add(g.trim());
-		} else {
-			String genes[] = Args.parseString(args, "genes", null).split(",");
-			for (String g : genes)
-				geneSet.add(g.trim());
-		}
-
-		// load refSeq gene annotation
-		int tssRadius = Args.parseInteger(args, "tss_range", 10001) / 2;
-		int chiapetRadius = Args.parseInteger(args, "chiapet_radius", 2000);
-		ArrayList<String> gene_annots = CommonUtils.readTextFile(Args.parseString(args, "gene_anno", null));
-		TreeMap<String, TreeSet<StrandedPoint>> gene2tss = new TreeMap<String, TreeSet<StrandedPoint>>();
-		for (int i = 0; i < gene_annots.size(); i++) {
-			String t = gene_annots.get(i);
-			if (t.startsWith("#"))
-				continue;
-			String f[] = t.split("\t");
-			String symbol = f[12];
-			if (!geneSet.contains(symbol))
-				continue;
-			String chr = f[2].replace("chr", "");
-			char strand = f[3].charAt(0);
-			StrandedPoint tss = new StrandedPoint(genome, chr, Integer.parseInt(f[strand == '+' ? 4 : 5]), strand);
-			if (!gene2tss.containsKey(symbol))
-				gene2tss.put(symbol, new TreeSet<StrandedPoint>());
-			gene2tss.get(symbol).add(tss);
-		}
-
-		// load read pairs
-		// for now, just loop through every read pair. To run faster, should
-		// sort by each end and use binary search to find tss end overlaps
-		ArrayList<String> read_pairs = CommonUtils.readTextFile(Args.parseString(args, "read_pair", null));
-		HashMap<String, Pair<ArrayList<Point>, ArrayList<Point>>> chr2reads = new HashMap<String, Pair<ArrayList<Point>, ArrayList<Point>>>();
-		for (String s : read_pairs) {
-			String[] f = s.split("\t");
-			Point r1 = Point.fromString(genome, f[0]);
-			String r1Chrom = r1.getChrom();
-			Point r2 = Point.fromString(genome, f[1]);
-			if (!r1Chrom.equals(r2.getChrom())) // skip if not from the same
-												// chromosome
-				continue;
-			if (!chr2reads.containsKey(r1Chrom)) {
-				ArrayList<Point> r1s = new ArrayList<Point>();
-				ArrayList<Point> r2s = new ArrayList<Point>();
-				chr2reads.put(r1Chrom, new Pair<ArrayList<Point>, ArrayList<Point>>(r1s, r2s));
-			}
-			Pair<ArrayList<Point>, ArrayList<Point>> reads = chr2reads.get(r1Chrom);
-			reads.car().add(r1);
-			reads.cdr().add(r2);
-		}
-
-		System.out.println("Loaded ChIA-PET read pairs: " + CommonUtils.timeElapsed(tic));
-		System.out.println();
-
-		// load TF sites
-		ArrayList<String> tfs = CommonUtils.readTextFile(Args.parseString(args, "tf_sites", null));
-		ArrayList<List<GPSPeak>> allPeaks = new ArrayList<List<GPSPeak>>();
-		for (int i = 0; i < tfs.size(); i++) {
-			try {
-				allPeaks.add(GPSParser.parseGPSOutput(tfs.get(i), genome));
-				System.out.println("Loaded " + tfs.get(i));
-			} catch (IOException e) {
-				System.out.println(tfs.get(i) + " does not have a valid GPS/GEM event call file.");
-				e.printStackTrace(System.err);
-				System.exit(1);
-			}
-		}
-
-		// load histone mark regions
-		ArrayList<String> hms = CommonUtils.readTextFile(Args.parseString(args, "regions", null));
-		ArrayList<List<Region>> allRegions = new ArrayList<List<Region>>();
-		for (int i = 0; i < hms.size(); i++) {
-			allRegions.add(CommonUtils.load_BED_regions(genome, hms.get(i)).car());
-			System.out.println("Loaded " + hms.get(i));
-		}
-		System.out.println();
-		// TreeMap<String, ArrayList<Integer>> gene2distances = new
-		// TreeMap<String, ArrayList<Integer>>();
-		// compute distance for each gene
-		ArrayList<String> geneList = new ArrayList<String>();
-		geneList.addAll(gene2tss.keySet());
-		StringBuilder sb = new StringBuilder();
-
-		for (int id = 0; id < geneList.size(); id++) {
-			String g = geneList.get(id);
-			System.out.print(g + " ");
-			ArrayList<Integer> distances = new ArrayList<Integer>();
-			ArrayList<ArrayList<Integer>> isTfBounds = new ArrayList<ArrayList<Integer>>();
-			TreeSet<StrandedPoint> coords = gene2tss.get(g);
-			// if gene has multiple TSSs, use the center position
-			int count = coords.size();
-			StrandedPoint centerPoint = null;
-			for (StrandedPoint p : coords) {
-				if (count < coords.size() / 2)
-					break;
-				else {
-					centerPoint = p;
-					count--;
-				}
-			}
-
-			// if one end of the read pair is near TSS, compute the offset of
-			// the other end
-			boolean isMinus = centerPoint.getStrand() == '-';
-			Pair<ArrayList<Point>, ArrayList<Point>> reads = chr2reads.get(centerPoint.getChrom());
-			if (reads == null)
-				continue;
-			ArrayList<Point> read1s = reads.car();
-			ArrayList<Point> read2s = reads.cdr();
-			for (int i = 0; i < read1s.size(); i++) {
-				int offset_p1 = read1s.get(i).offset(centerPoint);
-				int offset_p2 = read2s.get(i).offset(centerPoint);
-				int dist_p1 = Math.abs(offset_p1);
-				int dist_p2 = Math.abs(offset_p2);
-				// only add distance to the list if one read is within
-				// TSS_Radius, the other read is outside of TSS_Radius
-				if (dist_p1 < tssRadius) {
-					if (dist_p2 > tssRadius) {
-						distances.add(isMinus ? -offset_p2 : offset_p2);
-						ArrayList<Integer> isBound = new ArrayList<Integer>();
-						Point p = read2s.get(i);
-						for (int j = 0; j < allPeaks.size(); j++) {
-							List<GPSPeak> peaks = allPeaks.get(j);
-							int bound = 0;
-							for (GPSPeak gps : peaks) {
-								if (gps.getChrom().equals(p.getChrom()) && gps.distance(p) <= chiapetRadius) {
-									bound = 1;
-									break;
-								}
-							}
-							isBound.add(bound);
-						}
-						for (int j = 0; j < allRegions.size(); j++) {
-							List<Region> rs = allRegions.get(j);
-							int bound = 0;
-							for (Region r : rs) {
-								// if the region r contains point p, or the
-								// distance between midPoint of r and p is less
-								// than ChIAPET_radias
-								if (r.getChrom().equals(p.getChrom())
-										&& (r.contains(p) || r.getMidpoint().distance(p) <= chiapetRadius)) {
-									bound = 1;
-									break;
-								}
-							}
-							isBound.add(bound);
-						}
-						isTfBounds.add(isBound);
-					}
-				} else {
-					if (dist_p2 < tssRadius) {
-						distances.add(isMinus ? -offset_p1 : offset_p1);
-						ArrayList<Integer> isBound = new ArrayList<Integer>();
-						Point p = read1s.get(i);
-						for (int j = 0; j < allPeaks.size(); j++) {
-							List<GPSPeak> peaks = allPeaks.get(j);
-							int bound = 0;
-							for (GPSPeak gps : peaks) {
-								if (gps.getChrom().equals(p.getChrom()) && gps.distance(p) <= chiapetRadius) {
-									bound = 1;
-									break;
-								}
-							}
-							isBound.add(bound);
-						}
-						for (int j = 0; j < allRegions.size(); j++) {
-							List<Region> rs = allRegions.get(j);
-							int bound = 0;
-							for (Region r : rs) {
-								// if the region r contains point p, or the
-								// distance between midPoint of r and p is less
-								// than ChIAPET_radias
-								if (r.getChrom().equals(p.getChrom())
-										&& (r.contains(p) || r.getMidpoint().distance(p) <= chiapetRadius)) {
-									bound = 1;
-									break;
-								}
-							}
-							isBound.add(bound);
-						}
-						isTfBounds.add(isBound);
-					}
-				}
-			}
-
-			if (!distances.isEmpty()) {
-				// gene2distances.put(g, distances);
-				for (int i = 0; i < distances.size(); i++) {
-					sb.append(g).append("\t").append(centerPoint.toString()).append("\t").append(id);
-					sb.append("\t").append(distances.get(i));
-					for (int b : isTfBounds.get(i))
-						sb.append("\t").append(b);
-					sb.append("\n");
-				}
-			}
-		} // for each gene
-		CommonUtils.writeFile("all_genes.distal_offsets.txt", sb.toString());
-
-		System.out.println("\n\n" + CommonUtils.timeElapsed(tic));
-	}
-
-	private void clusterDistalReads() {
-		int tss_exclude = Args.parseInteger(args, "tss_exclude", 8000);
-		int step = Args.parseInteger(args, "merge_dist", 1500);
-		int minRead = Args.parseInteger(args, "min_count", 2);
-
-		// load data
-		ArrayList<String> lines = CommonUtils.readTextFile(Args.parseString(args, "tss_reads", null));
-		TSSwithReads tss = new TSSwithReads();
-		tss.symbol = "---";
-		ArrayList<TSSwithReads> allTss = new ArrayList<TSSwithReads>();
-		for (String l : lines) { // each line is a distal read
-			String f[] = l.split("\t");
-			int offset = Integer.parseInt(f[3]);
-			if (Math.abs(offset) < tss_exclude) // skip the read if it is within
-												// TSS exclude region
-				continue;
-			if (!f[0].equals(tss.symbol)) { // a new gene
-				tss = new TSSwithReads();
-				tss.symbol = f[0];
-				tss.coord = StrandedPoint.fromString(genome, f[1]);
-				tss.id = Integer.parseInt(f[2]);
-				tss.reads = new TreeMap<Integer, ArrayList<Boolean>>();
-				allTss.add(tss);
-			}
-			ArrayList<Boolean> isBound = new ArrayList<Boolean>();
-			for (int i = 4; i < f.length; i++) {
-				isBound.add(f[i].equals("1"));
-			}
-			tss.reads.put(offset, isBound);
-		}
-
-		lines = CommonUtils.readTextFile(Args.parseString(args, "germ", null));
-		HashMap<Point, ArrayList<Point>> germTss2distals = new HashMap<Point, ArrayList<Point>>();
-		ArrayList<Point> germTss = new ArrayList<Point>();
-		for (String l : lines) { // each line is a call
-			String f[] = l.split("\t");
-			Point t = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]))
-					.getMidpoint();
-			if (!germTss2distals.containsKey(t))
-				germTss2distals.put(t, new ArrayList<Point>());
-			germTss2distals.get(t)
-					.add(new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]))
-							.getMidpoint());
-		}
-		germTss.addAll(germTss2distals.keySet());
-		Collections.sort(germTss);
-
-		lines = CommonUtils.readTextFile(Args.parseString(args, "mango", null));
-		HashMap<Point, ArrayList<Point>> a2bs = new HashMap<Point, ArrayList<Point>>();
-		HashMap<Point, ArrayList<Point>> b2as = new HashMap<Point, ArrayList<Point>>();
-		for (String l : lines) { // each line is a call
-			String f[] = l.split("\t");
-			Point a = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]), Integer.parseInt(f[2]))
-					.getMidpoint();
-			Point b = new Region(genome, f[3].replace("chr", ""), Integer.parseInt(f[4]), Integer.parseInt(f[5]))
-					.getMidpoint();
-			if (!a2bs.containsKey(a))
-				a2bs.put(a, new ArrayList<Point>());
-			a2bs.get(a).add(b);
-			if (!b2as.containsKey(b))
-				b2as.put(b, new ArrayList<Point>());
-			b2as.get(b).add(a);
-		}
-		ArrayList<Point> aPoints = new ArrayList<Point>();
-		aPoints.addAll(a2bs.keySet());
-		Collections.sort(aPoints);
-		ArrayList<Point> bPoints = new ArrayList<Point>();
-		bPoints.addAll(b2as.keySet());
-		Collections.sort(bPoints);
-
-		// cluster the reads
-		for (TSSwithReads t : allTss) {
-			ArrayList<Integer> cluster = new ArrayList<Integer>();
-			for (int offset : t.reads.keySet()) {
-				if (cluster.isEmpty() || offset - cluster.get(cluster.size() - 1) < step) {
-					cluster.add(offset);
-				} else { // have a large distance, finish old cluster, create
-							// new cluster
-					if (cluster.size() >= minRead) { // at least 2 reads
-						int median = cluster.get(cluster.size() / 2);
-						Point tssPoint = t.coord;
-						Point distalPoint = new Point(genome, t.coord.getChrom(),
-								t.coord.getLocation() + (t.coord.getStrand() == '+' ? median : -median));
-						Region distalRegion = null;
-						if (t.coord.getStrand() == '+') {
-							distalRegion = new Region(genome, t.coord.getChrom(),
-									t.coord.getLocation() + cluster.get(0),
-									t.coord.getLocation() + cluster.get(cluster.size() - 1));
-						} else {
-							distalRegion = new Region(genome, t.coord.getChrom(),
-									t.coord.getLocation() - cluster.get(cluster.size() - 1),
-									t.coord.getLocation() - cluster.get(0));
-						}
-						// print result if the read cluster is not in the tss
-						// exclusion range
-						System.out.print(String.format("%s\t%s\t%s\t%s\t%d\t%d\t%d\t", t.symbol,
-								t.coord.getLocationString(), distalRegion.getLocationString(),
-								distalPoint.getLocationString(), median, cluster.size(), distalRegion.getWidth()));
-
-						// print binding overlap information
-						int count = t.reads.get(cluster.get(0)).size();
-						for (int c = 0; c < count; c++) {
-							boolean isBound = false;
-							for (int clusterOffset : cluster) {
-								isBound = isBound || t.reads.get(clusterOffset).get(c);
-							}
-							System.out.print(isBound ? "1\t" : "0\t");
-						}
-
-						// print ChIA-PET call overlap info
-						Point tssLeft = new Point(genome, t.coord.getChrom(), t.coord.getLocation() - 2000);
-						Point tssRight = new Point(genome, t.coord.getChrom(), t.coord.getLocation() + 2000);
-
-						// GERM
-						int index = Collections.binarySearch(germTss, tssLeft);
-						if (index < 0) // if key not found
-							index = -(index + 1);
-						int indexRight = Collections.binarySearch(germTss, tssRight);
-						if (indexRight < 0) // if key not found
-							indexRight = -(indexRight + 1);
-						// if key match found, continue to search (
-						// binarySearch() give undefined index with multiple
-						// matches)
-						boolean isOverlapped = false;
-						indexRange: for (int i = index - 1; i <= indexRight + 2; i++) {
-							if (i < 0 || i >= germTss.size())
-								continue;
-							try {
-								Point tt = germTss.get(i);
-								if (tt.distance(tssPoint) <= 2000) {
-									if (!germTss2distals.containsKey(tt))
-										continue;
-									for (Point d : germTss2distals.get(tt)) {
-										// System.out.print(tt.getLocationString()+"\t"+d.getLocationString());
-										if (d.distance(distalPoint) <= 2000) {
-											isOverlapped = true;
-											// System.out.println("\tHIT");
-											break indexRange;
-										}
-										// else
-										// System.out.println();
-									}
-								}
-							} catch (IllegalArgumentException e) { // ignore
-							}
-						}
-						System.out.print(isOverlapped ? "1\t" : "0\t");
-
-						// Mango
-						index = Collections.binarySearch(aPoints, tssLeft);
-						if (index < 0) // if key not found
-							index = -(index + 1);
-						indexRight = Collections.binarySearch(aPoints, tssRight);
-						if (indexRight < 0) // if key not found
-							indexRight = -(indexRight + 1);
-						// if key match found, continue to search (
-						// binarySearch() give undefined index with multiple
-						// matches)
-						isOverlapped = false;
-						indexA: for (int i = index - 1; i <= indexRight + 2; i++) {
-							if (i < 0 || i >= aPoints.size())
-								continue;
-							try {
-								Point a = aPoints.get(i);
-								if (a.distance(tssPoint) <= 2000) {
-									if (!a2bs.containsKey(a))
-										continue;
-									for (Point b : a2bs.get(a)) {
-										if (b.distance(distalPoint) <= 2000) {
-											isOverlapped = true;
-											break indexA;
-										}
-									}
-								}
-							} catch (IllegalArgumentException e) { // ignore
-							}
-						}
-						if (isOverlapped)
-							System.out.print("1\t");
-						else {
-							index = Collections.binarySearch(bPoints, tssLeft);
-							if (index < 0) // if key not found
-								index = -(index + 1);
-							indexRight = Collections.binarySearch(bPoints, tssRight);
-							if (indexRight < 0) // if key not found
-								indexRight = -(indexRight + 1);
-							// if key match found, continue to search (
-							// binarySearch() give undefined index with multiple
-							// matches)
-							isOverlapped = false;
-							indexB: for (int i = index - 1; i <= indexRight + 2; i++) {
-								if (i < 0 || i >= bPoints.size())
-									continue;
-								try {
-									Point b = bPoints.get(i);
-									if (b.distance(tssPoint) <= 2000) {
-										if (!b2as.containsKey(b))
-											continue;
-										for (Point a : b2as.get(b)) {
-											if (a.distance(distalPoint) <= 2000) {
-												isOverlapped = true;
-												break indexB;
-											}
-										}
-									}
-								} catch (IllegalArgumentException e) { // ignore
-								}
-							}
-							System.out.print(isOverlapped ? "1\t" : "0\t");
-						}
-
-						System.out.println();
-					}
-					cluster.clear();
-					cluster.add(offset);
-					continue;
-				}
-			}
-		}
-	}
-
 	private int span2mergingDist(int span){
 		return Math.min(max_cluster_merge_dist,
 				Math.max(dc, distance_base+span/distance_factor));
@@ -926,7 +490,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180301\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180331\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -2858,6 +2422,44 @@ public class CID {
 		CommonUtils.writeFile(cidFile.replace("txt", "") + "annotated.txt", sb.toString());
 	}
 
+	/**
+	 * Overlap distal anchors of CID interaction calls with some annotation as regions.
+	 * @param args
+	 */
+	private static void enhancers2genes(String[] args) {
+		Genome genome = CommonUtils.parseGenome(args);
+		String cidFile = Args.parseString(args, "cid", null);
+		String bed1File = Args.parseString(args, "bed", null);
+		int win = Args.parseInteger(args, "win", 1000);
+
+		Pair<ArrayList<Region>, ArrayList<String>> tmp = CommonUtils.load_BED_regions(genome, bed1File);
+		ArrayList<Region> regions = tmp.car();
+		ArrayList<String> regonNames = tmp.cdr();
+		if (regonNames.isEmpty())
+			for (Region r: regions)
+				regonNames.add(r.toString());
+		
+		ArrayList<String> lines = CommonUtils.readTextFile(cidFile);
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < lines.size(); i++) {
+			String t = lines.get(i);
+			String f[] = t.split("\t");
+			// field 5 (i.e. 6th): distal anchor region. the input cpc file has been swapped anchors if 6th column is the TSS
+			Region distal = Region.fromString(genome, f[5]);	
+			Region tss = Region.fromString(genome, f[2]);	
+			ArrayList<Integer> idx1 = CommonUtils.getRegionIdxOverlapsWindow(regions, distal, win);
+			for (int id : idx1) {
+				sb.append(tss.toBED()).append("\t");
+				sb.append(regions.get(id).toBED()).append("\t");
+				sb.append(f[11]).append("\t");
+				sb.append(f[0]).append("\t");
+				sb.append(regonNames.get(id)).append("\t");
+				sb.append(f[6]).append("\n");
+			}
+		}
+		CommonUtils.writeFile(Args.parseString(args, "out", null)+".e2g.txt", sb.toString());
+	}
+	
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
 		ArrayList<Pair<ReadCache,ReadCache>> expts = new ArrayList<Pair<ReadCache,ReadCache>>();
 		ReadCache ipCache = new ReadCache(genome, "IP", null, null);
