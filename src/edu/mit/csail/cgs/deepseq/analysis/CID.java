@@ -2449,15 +2449,19 @@ public class CID {
 			Region tss = Region.fromString(genome, f[2]);	
 			ArrayList<Integer> idx1 = CommonUtils.getRegionIdxOverlapsWindow(regions, distal, win);
 			for (int id : idx1) {
-				sb.append(tss.toBED()).append("\t");
-				sb.append(regions.get(id).toBED()).append("\t");
+				Region enhancer = regions.get(id);
+				if (tss.before(enhancer))
+					sb.append(tss.toBED()).append("\t").append(enhancer.toBED()).append("\t");
+				else
+					sb.append(enhancer.toBED()).append("\t").append(tss.toBED()).append("\t");
 				sb.append(f[11]).append("\t");
+				sb.append(enhancer.getMidpoint().offset(Point.fromString(genome, f[1]))).append("\t");
 				sb.append(f[0]).append("\t");
 				sb.append(regonNames.get(id)).append("\t");
 				sb.append(f[6]).append("\n");
 			}
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", null)+".e2g.txt", sb.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", null)+".e2g.bedpe", sb.toString());
 	}
 	
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
