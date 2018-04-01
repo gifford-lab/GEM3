@@ -2461,7 +2461,7 @@ public class CID {
 				sb.append(f[6]).append("\n");
 			}
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", null)+".e2g.bedpe", sb.toString());
+		CommonUtils.writeFile(Args.parseString(args, "out", null)+".e2p.bedpe", sb.toString());
 	}
 	
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
