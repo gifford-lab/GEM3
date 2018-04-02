@@ -2428,40 +2428,89 @@ public class CID {
 	 */
 	private static void enhancers2genes(String[] args) {
 		Genome genome = CommonUtils.parseGenome(args);
-		String cidFile = Args.parseString(args, "cid", null);
-		String bed1File = Args.parseString(args, "bed", null);
+		String cidFile = Args.parseString(args, "cid", null);		// CID readCluster file
+		String bedFile = Args.parseString(args, "bed", null);		// BED 3+1 format
+		String rnaFile = Args.parseString(args, "rna", null);		// RNA-seq Gene_symbol<TAB>fpkm
 		int win = Args.parseInteger(args, "win", 1000);
 
-		Pair<ArrayList<Region>, ArrayList<String>> tmp = CommonUtils.load_BED_regions(genome, bed1File);
+		// load RNA
+		ArrayList<String> lines = CommonUtils.readTextFile(rnaFile);
+		HashMap<String, Double> g2expr = new HashMap<String, Double> ();
+		for (String l: lines) {
+			String f[] = l.split("\t");
+			if (!g2expr.containsKey(f[0]))
+				g2expr.put(f[0], Double.valueOf(f[1]));
+			else {
+				double d = Double.valueOf(f[1]);
+				if (d>g2expr.get(f[0]))				// for gene with multiple expressio values, overwrite if higher value
+					g2expr.put(f[0], Double.valueOf(d));
+			}
+		}
+
+		// load enhancer regions
+		Pair<ArrayList<Region>, ArrayList<String>> tmp = CommonUtils.load_BED_regions(genome, bedFile);
 		ArrayList<Region> regions = tmp.car();
 		ArrayList<String> regonNames = tmp.cdr();
 		if (regonNames.isEmpty())
 			for (Region r: regions)
 				regonNames.add(r.toString());
 		
-		ArrayList<String> lines = CommonUtils.readTextFile(cidFile);
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < lines.size(); i++) {
-			String t = lines.get(i);
-			String f[] = t.split("\t");
+		// load interactoins, link enhancers to genes
+		TreeMap<String, Pair<Integer, String[]>> enh2genes = new TreeMap<String, Pair<Integer, String[]>> ();
+		// enh2genes: key = gene+region label, value = (enhancer region idx, interaction line fields)
+		lines = CommonUtils.readTextFile(cidFile);
+		for (String l: lines) {
+			String f[] = l.split("\t");
 			// field 5 (i.e. 6th): distal anchor region. the input cpc file has been swapped anchors if 6th column is the TSS
 			Region distal = Region.fromString(genome, f[5]);	
-			Region tss = Region.fromString(genome, f[2]);	
 			ArrayList<Integer> idx1 = CommonUtils.getRegionIdxOverlapsWindow(regions, distal, win);
 			for (int id : idx1) {
-				Region enhancer = regions.get(id);
-				if (tss.before(enhancer))
-					sb.append(tss.toBED()).append("\t").append(enhancer.toBED()).append("\t");
-				else
-					sb.append(enhancer.toBED()).append("\t").append(tss.toBED()).append("\t");
-				sb.append(f[11]).append("\t");
-				sb.append(enhancer.getMidpoint().offset(Point.fromString(genome, f[1]))).append("\t");
-				sb.append(f[0]).append("\t");
-				sb.append(regonNames.get(id)).append("\t");
-				sb.append(f[6]).append("\n");
+				String key = regonNames.get(id)+":"+f[0];
+				if (!enh2genes.containsKey(key))
+					enh2genes.put(key, new Pair<Integer, String[]>(new Integer(id), f));
+				else {
+					String[] f0 = enh2genes.get(key).cdr();
+					if (Integer.parseInt(f[11])>Integer.parseInt(f0[11])) // if same pair of enhancer and genes are connected by multiple interactions, take the one with higher PET count
+						enh2genes.put(key, new Pair<Integer, String[]>(new Integer(id), f));
+				}
 			}
 		}
-		CommonUtils.writeFile(Args.parseString(args, "out", null)+".e2p.bedpe", sb.toString());
+		
+		StringBuilder sb = new StringBuilder();
+		for (String key: enh2genes.keySet()) {
+			String f[] = enh2genes.get(key).cdr();
+			String[] f0 = f[0].split(",");
+			int maxId = 0;
+			double maxExpr = 0;
+			for (int i=0;i<f0.length;i++) {
+				String g = f0[i];
+				double expr = g2expr.containsKey(g) ? g2expr.get(g) : 0;
+				if (expr>maxExpr) {
+					maxId = i;
+					maxExpr = expr;
+				}
+			}
+			if (maxExpr==0)
+				continue;
+			
+			int id = enh2genes.get(key).car();
+			
+			Region tss = Region.fromString(genome, f[2]);	
+			Region enhancer = regions.get(id);
+			if (tss.before(enhancer))
+				sb.append(tss.toBED()).append("\t").append(enhancer.toBED()).append("\t");
+			else
+				sb.append(enhancer.toBED()).append("\t").append(tss.toBED()).append("\t");
+			sb.append(f[11]).append("\t");
+			sb.append(enhancer.getMidpoint().offset(Point.fromString(genome, f[1]))).append("\t");
+			sb.append(f[0]).append("\t");
+			sb.append(String.format("%s\t%.2f", f0[maxId], maxExpr)).append("\t");
+			sb.append(regonNames.get(id)).append("\t");
+			sb.append(f[6]).append("\n");
+		}
+		String s = Args.parseString(args, "out", null)+".e2p.bedpe";
+		CommonUtils.writeFile(s, sb.toString());
+		System.out.println(s);
 	}
 	
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
