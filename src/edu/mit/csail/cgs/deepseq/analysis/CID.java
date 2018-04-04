@@ -634,9 +634,7 @@ public class CID {
 		            e.printStackTrace(System.err);
 	        	}
         }   
-
-
-
+		
 		low.trimToSize();
 		high.trimToSize();
 		// sort by low end read1: default
@@ -853,8 +851,19 @@ public class CID {
 
 			System.out.println("\nRunning "+(run_gem?"GEM":"GPS")+" on single-end reads: " + CommonUtils.timeElapsed(tic0));
 
-			// prepare single end read data and run GEM			
-			KPPMixture mixture = new KPPMixture(genome, prepareGEMData(reads), args);
+			// prepare single end read data and run GEM
+			ArrayList<StrandedPoint> data = null;
+			if (reads.size()>50000000) {		// if the unfiltered reads are too much (more than 50M)
+				data = new ArrayList<StrandedPoint>();
+				for (ReadPair rp: low) {
+					data.add(rp.r1);
+					data.add(rp.r2);
+				}
+				data.trimToSize();
+			}
+			else
+				data = reads;
+			KPPMixture mixture = new KPPMixture(genome, prepareGEMData(data), args);
 	        int round = 0;
 	        outName = mixture.getOutName();		// get the new path with GEM_output folder
 			mixture.setOutName(outName+"_"+round);
