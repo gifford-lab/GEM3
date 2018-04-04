@@ -490,7 +490,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180331\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180404\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
