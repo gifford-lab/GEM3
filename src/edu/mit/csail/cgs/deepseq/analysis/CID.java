@@ -2523,6 +2523,7 @@ public class CID {
 	}
 	
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
+		Collections.sort(reads);
 		ArrayList<Pair<ReadCache,ReadCache>> expts = new ArrayList<Pair<ReadCache,ReadCache>>();
 		ReadCache ipCache = new ReadCache(genome, "IP", null, null);
 		int coord = reads.get(0).getLocation();
