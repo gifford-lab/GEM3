@@ -490,7 +490,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180404\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180416\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -525,7 +525,10 @@ public class CID {
 		// all PETs sorted by the low end
 		ArrayList<ReadPair> low = new ArrayList<ReadPair>(); 
 		ArrayList<ReadPair> high = new ArrayList<ReadPair>(); // sort high end
-
+		int numTotalLoaded = 0;
+		int numBothEnds=0;
+		int numIntraChrom = 0;
+		int numExcluded = 0;
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(Args.parseString(args, "data", null)))));
 	        String line;
@@ -543,15 +546,19 @@ public class CID {
 	    		
 	    		StrandedPoint tmp1 = null;
 	        while((line = bin.readLine()) != null) { 
-	            line = line.trim();
+				numTotalLoaded++;
+				line = line.trim();
 	    			String[] f = line.split("\t");
 	    			StrandedPoint r1;
 	    			StrandedPoint r2;
 	    			if (!isBEDPE){		// cgsPoints 
 	    				r1 = StrandedPoint.fromString(genome, f[0]);
 	    				r2 = StrandedPoint.fromString(genome, f[1]);
-	    				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
+	    				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom())){
+	    					numExcluded++;
 	    					continue;
+	    				}
+	    				numBothEnds++;
 	    			}
 	    			else{	// BEDPE format
 	    				if (!use_1_end_reads && (f[0].charAt(0)=='*' || f[3].charAt(0)=='*'))
@@ -563,8 +570,10 @@ public class CID {
 	    				char strand2 = f[9].charAt(0);
 //	    				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), (Integer.parseInt(f[4])+Integer.parseInt(f[5]))/2, strand2);
 	    				r2 = new StrandedPoint(genome, f[3].replace("chr", ""), strand1=='+'?Integer.parseInt(f[4]):Integer.parseInt(f[5]), strand2);
-	    				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom()))
+	    				if (excludedChroms.contains(r1.getChrom()) || excludedChroms.contains(r2.getChrom())) {
+	    					numExcluded++;
 	    					continue;
+	    				}
 	    				// if not both ends are aligned properly, skip, 
 	    				// but if one of the read is mapped, add the read to the single-end reads object 
 	    				if (r1.getChrom().equals("*")){
@@ -579,12 +588,15 @@ public class CID {
 	    						reads.add(r1);
 	    					continue;
 	    				}
+	    				numBothEnds++;
 	    			}
-	    			
+	    			if (numBothEnds!=numTotalLoaded)
+	    				numBothEnds=numBothEnds+0;
 	    			// TODO: change next line if predicting inter-chrom interactions
 	    			// r1 and r2 should be on the same chromosome for PETs
 	    			if (!r1.getChrom().equals(r2.getChrom())) 
 	    				continue;
+	    			numIntraChrom++;
 	    			
 	    			// DO NOT  treat inter-chrom reads as single-end reads
 	    			// TODO: should we???
@@ -657,9 +669,13 @@ public class CID {
 		reads.trimToSize();
 		Collections.sort(reads);
 
-		System.out.println("\nLoaded total single reads = " + reads.size() + ", filtered PETs =" + highEnds.size()
-		+ " : " + CommonUtils.timeElapsed(tic0));
-
+		System.out.println(String.format("\nRead pair data loaded: %s\n\nTotal PETs loaded n=%d\nPETs excluded n=%d\nPETs with both ends n=%d\nIntra-chrom PETs n=%d\nFiltered (span>%dbp) PETs n=%d\nTotal single reads n=%d", 
+				CommonUtils.timeElapsed(tic0), numTotalLoaded, numExcluded, numBothEnds, numIntraChrom, min_span, highEnds.size(), reads.size()));
+		if (flags.contains("stats_only")) {
+			System.out.println("\nstats_only is on, exit here.");
+			System.exit(0);
+		}
+		
 		// a hack to print out PETs that support a list of BEDPE-format loops
 		String loop_file = Args.parseString(args, "loops", null);
 		if (loop_file != null) {
@@ -860,6 +876,7 @@ public class CID {
 					data.add(rp.r2);
 				}
 				data.trimToSize();
+				Collections.sort(data);
 			}
 			else
 				data = reads;
@@ -2522,8 +2539,13 @@ public class CID {
 		System.out.println(s);
 	}
 	
+	/**
+	 * Take single-end reads and re-format them for GPS/GEM<br>
+	 * The reads arrayList object should be sorted
+	 * @param reads sorted list of reads
+	 * @return
+	 */
 	private ArrayList<Pair<ReadCache,ReadCache>> prepareGEMData(ArrayList<StrandedPoint> reads) {
-		Collections.sort(reads);
 		ArrayList<Pair<ReadCache,ReadCache>> expts = new ArrayList<Pair<ReadCache,ReadCache>>();
 		ReadCache ipCache = new ReadCache(genome, "IP", null, null);
 		int coord = reads.get(0).getLocation();
