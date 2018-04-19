@@ -647,6 +647,7 @@ public class CID {
 	        	}
         }   
 		
+		System.out.println("Sorting data ... " + CommonUtils.timeElapsed(tic0));
 		low.trimToSize();
 		high.trimToSize();
 		// sort by low end read1: default
@@ -870,6 +871,8 @@ public class CID {
 			// prepare single end read data and run GEM
 			ArrayList<StrandedPoint> data = null;
 			if (reads.size()>50000000) {		// if the unfiltered reads are too much (more than 50M)
+				reads = null;		// don't need the single reads from now on, clean up
+				System.gc();
 				data = new ArrayList<StrandedPoint>();
 				for (ReadPair rp: low) {
 					data.add(rp.r1);
@@ -880,7 +883,11 @@ public class CID {
 			}
 			else
 				data = reads;
-			KPPMixture mixture = new KPPMixture(genome, prepareGEMData(data), args);
+			ArrayList<Pair<ReadCache,ReadCache>> gemData = prepareGEMData(data);
+			data = null;		// don't need the single reads from now on, clean up
+			System.gc();
+			
+			KPPMixture mixture = new KPPMixture(genome, gemData, args);
 	        int round = 0;
 	        outName = mixture.getOutName();		// get the new path with GEM_output folder
 			mixture.setOutName(outName+"_"+round);
@@ -924,6 +931,8 @@ public class CID {
 	        outName = Args.parseString(args, "out", "CID");		// set outName back to the original
 		}	// if running GPS
 		
+		reads = null;		// don't need the single reads from now on, clean up
+		System.gc();
 		
 		/***********************************************************************
 		 * One dimension  segmentation using left read (similar to GEM code)
