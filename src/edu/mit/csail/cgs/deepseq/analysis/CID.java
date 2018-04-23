@@ -490,7 +490,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180416\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180422\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -657,6 +657,7 @@ public class CID {
 				return o1.compareRead2(o2);
 			}
 		});
+		// TODO: write filtered PET file
 
 		ArrayList<Point> lowEnds = new ArrayList<Point>();
 		for (ReadPair r : low)
@@ -1181,13 +1182,19 @@ public class CID {
 
 		// merge nearby clusters
 //		ArrayList<ReadPairCluster> tmp = clustersCalled;
+		if (isDev)
+			System.err.println("Merge nearby PET clusters ... " + CommonUtils.timeElapsed(tic0));
+		int mergeIterations = 0;
 		while(true) {
+			long tic2 = System.currentTimeMillis();
 			int num = clustersCalled.size();
 			Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
 				public int compare(ReadPairCluster o1, ReadPairCluster o2) {
 					return o1.compareByLeftAnchorPoint(o2);
 				}
 			});
+			if (isDev)
+				System.err.print("Iter " + mergeIterations++ + ": " + CommonUtils.timeElapsed(tic2));
 			for (int i = 0; i < clustersCalled.size(); i++) {
 				ReadPairCluster c1 = clustersCalled.get(i);
 	//				if (c1.leftRegion.overlaps(new Region(genome, "13", 23562420, 23564665)))	//13:23562420-23564665
@@ -1252,7 +1259,8 @@ public class CID {
 					toRemoveClusters.clear();
 				}
 			} // for each c1
-			
+			if (isDev)
+				System.err.println(", " + CommonUtils.timeElapsed(tic2));
 			// if no change, break
 			if (clustersCalled.size()==num)
 				break;
@@ -1535,11 +1543,8 @@ public class CID {
 							receiver.update(false);
 							donor.pets.clear();
 						}
-//						else
-//							dc += 0;
 					}
 				}
-//				dc += 0;
 			}
 			
 //			System.out.println(cc.toString());
@@ -2070,7 +2075,7 @@ public class CID {
 			Collections.sort(aPoints);
 		}
 
-		System.out.println("\nAnnotate and report, " + CommonUtils.timeElapsed(tic0));
+		System.out.println("Annotate and report, " + CommonUtils.timeElapsed(tic0));
 		// report the interactions and annotations
 		StringBuilder sb = new StringBuilder();
 		CommonUtils.writeFile(Args.parseString(args, "out", "Result") + ".readClusters.txt", "");

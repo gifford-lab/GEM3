@@ -583,15 +583,15 @@ public class CommonUtils {
 	            line = line.trim();
 	            if (line.startsWith(">")){	// header
 	            	// process the full sequence of last item
-	            	if (sbSeq.length()!=0){
-						strs.add(sbSeq.toString());
-						sbSeq = new StringBuilder();
-					}
-	            	strs.add(line);
-	        	}
-	        	else{	// sequence
-	        		sbSeq.append(line);
-	        	}
+		            	if (sbSeq.length()!=0){
+							strs.add(sbSeq.toString());
+							sbSeq = new StringBuilder();
+						}
+		            	strs.add(line);
+		        	}
+		        	else{	// sequence
+		        		sbSeq.append(line);
+		        	}
 	        }
 	        if (sbSeq.length()!=0){
 				strs.add(sbSeq.toString());

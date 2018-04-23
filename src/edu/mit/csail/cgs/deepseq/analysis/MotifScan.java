@@ -43,6 +43,7 @@ public class MotifScan {
 	public static void findMotifInstances(String[] args){
 		Set<String> flags = Args.parseFlags(args);
 	    boolean toAddFasta = flags.contains("add_fasta");
+	    boolean outputSimple = flags.contains("simple");
 	    boolean toMakeMatrix = flags.contains("matrix");		// make seq-motif feature matrix
 
 		String fasta = Args.parseString(args, "fasta", null);
@@ -185,8 +186,8 @@ public class MotifScan {
 						kmacs.add(kmac);
 					}
 				    if (toMakeMatrix){
-				    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), makeScoreMatrix_multiKSMs(seqs, kmacs, knames));
-				    	System.exit(0);
+					    	CommonUtils.writeFile(out.concat(".scoreMatrix.txt"), makeScoreMatrix_multiKSMs(seqs, kmacs, knames));
+					    	System.exit(0);
 				    }
 					instances = scan_multiKSMs(seqs, kmacs, knames);
 					numMotif = kmacs.size();
@@ -219,11 +220,15 @@ public class MotifScan {
 			System.out.println("Note: for motif instances on the minus strand, the SeqPos is the position on the reverse compliment of the input sequence.");
 		}
 	    if (toAddFasta){
-	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
-    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists
+		    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
+	    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\tFasta\n"); 	// write first, overwrite if the file exists
+	    }
+	    else if (outputSimple){
+	    		CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
+	    			header+"\nMotif\tSeqID\tSeqPos\tStrand\tScore\n"); 	// write first, overwrite if the file exists
 	    }
 	    else{
-	    	CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
+	    		CommonUtils.writeFile(out.concat(".motifInstances.txt"), 
 	    			header+"\nMotif\tSeqID\tMotif_Name\tSeqName\tMatch\tSeqPos\tCoord\tStrand\tScore\n"); 	// write first, overwrite if the file exists	    	
 	    }
 		StringBuilder sb = new StringBuilder();
@@ -249,10 +254,13 @@ public class MotifScan {
 		    	}
 		    	else
 		    		coor_string = "N.A.";
-		    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t").append(mi.motifName).append("\t")
-		    	.append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t")
-		    	.append(mi.position).append("\t").append(coor_string).append("\t")
-		    	.append(mi.strand).append("\t").append(String.format("%.2f", mi.score));
+		    	sb.append(mi.motifID).append("\t").append(mi.seqID).append("\t");
+		    	if (!outputSimple)
+		    		sb.append(mi.motifName).append("\t").append(names[mi.seqID]).append("\t").append(mi.matchSeq).append("\t");
+		    	sb.append(mi.position).append("\t");
+		    	if (!outputSimple)
+		    		sb.append(coor_string).append("\t");
+		    	sb.append(mi.strand).append("\t").append(String.format("%.2f", mi.score));
 		    	if (toAddFasta){
 		    		sb.append("\t").append(seqs[mi.seqID]);
 		    	}

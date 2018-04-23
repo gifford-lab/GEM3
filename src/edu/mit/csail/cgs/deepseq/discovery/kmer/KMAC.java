@@ -66,9 +66,9 @@ import weka.filters.unsupervised.attribute.Normalize;
 import weka.filters.unsupervised.attribute.Standardize;
 
 public class KMAC {
-	public final static String KMAC_VERSION = "1.3";
+	public final static String KMAC_VERSION = "1.4";
 
-	public static final int RC=100000;		// extra bp add to indicate negative strand match of kmer
+	public static final int RC=1000000000;		// extra bp add to indicate negative strand match of kmer
 	private static final int UNALIGNED=9999;	// the special shift for unaligned kmer
 	public static final char[] LETTERS = {'A','C','G','T'};
 	public static final int MAXLETTERVAL = Math.max(Math.max(Math.max('A','C'),Math.max('T','G')),
