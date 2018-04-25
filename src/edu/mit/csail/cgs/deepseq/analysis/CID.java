@@ -490,7 +490,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180422\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180425\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -590,8 +590,7 @@ public class CID {
 	    				}
 	    				numBothEnds++;
 	    			}
-	    			if (numBothEnds!=numTotalLoaded)
-	    				numBothEnds=numBothEnds+0;
+
 	    			// TODO: change next line if predicting inter-chrom interactions
 	    			// r1 and r2 should be on the same chromosome for PETs
 	    			if (!r1.getChrom().equals(r2.getChrom())) 
@@ -1209,8 +1208,8 @@ public class CID {
 						break;
 					int span = Math.max(c1.span, c2.span);
 					int merge_dist = span2mergingDist(span);
-					if (c1.leftPoint.distance(c2.leftPoint)>merge_dist*2)	// too far (tmp is sorted by left then right points)
-						break;	
+					if (c1.leftPoint.distance(c2.leftPoint)>merge_dist*2)	// too far (clustersCalled is sorted by leftPoints)
+						break;	// early stop
 					if (c1.distance(c2)>merge_dist*2)
 						continue;
 					
@@ -1227,16 +1226,13 @@ public class CID {
 					boolean toSetAnchorPoints = false;
 					Point left = null; 
 					Point right  = null;
-					if (c1.pets.size()==c2.pets.size()){		// case 1
+					if (c1.pets.size()==c2.pets.size()){		// case 1, set anchors to mid points
 						toSetAnchorPoints = true;
 					}
-					else if (c1.pets.size()<c2.pets.size()){	// case 2
+					else if (c1.pets.size()<c2.pets.size()){	// case 2, set anchors to c2
 						left = c2.leftPoint;
 						right = c2.rightPoint;
 					} 
-	//					else if (c1.pets.size()>c2.pets.size()) : 	// case 3: Do nothing
-					
-					String c1_old = c1.toString();
 					for (ReadPair rp2 : c2.pets)
 						c1.addReadPair(rp2);
 					c1.update(toSetAnchorPoints);
@@ -1260,7 +1256,7 @@ public class CID {
 				}
 			} // for each c1
 			if (isDev)
-				System.err.println(", " + CommonUtils.timeElapsed(tic2));
+				System.err.println(", merged "+(num-clustersCalled.size())+", " + CommonUtils.timeElapsed(tic2));
 			// if no change, break
 			if (clustersCalled.size()==num)
 				break;
