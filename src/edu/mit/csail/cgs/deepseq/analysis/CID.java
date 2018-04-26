@@ -647,6 +647,9 @@ public class CID {
         }   
 		
 		System.out.println("Sorting data ... " + CommonUtils.timeElapsed(tic0));
+		reads.trimToSize();
+		Collections.sort(reads);
+
 		low.trimToSize();
 		high.trimToSize();
 		// sort by low end read1: default
@@ -657,6 +660,20 @@ public class CID {
 			}
 		});
 		// TODO: write filtered PET file
+		if (isDev) {
+			StringBuilder sb1 = new StringBuilder();
+			String fn = outName+".filteredPETs.txt";
+			CommonUtils.writeFile(fn, sb1.toString());
+			for (ReadPair rp: low) {
+				sb1.append(rp.r1.toString()).append("\t").append(rp.r2.toString()).append("\n");
+				if (sb1.length()>10000000){
+					CommonUtils.appendFile(fn, sb1.toString());
+					sb1=new StringBuilder();
+				}		
+			}
+			CommonUtils.appendFile(fn, sb1.toString());
+			sb1 = null;
+		}
 
 		ArrayList<Point> lowEnds = new ArrayList<Point>();
 		for (ReadPair r : low)
@@ -666,9 +683,6 @@ public class CID {
 		for (ReadPair r : high)
 			highEnds.add(r.r2);
 		highEnds.trimToSize();
-
-		reads.trimToSize();
-		Collections.sort(reads);
 
 		System.out.println(String.format("\nRead pair data loaded: %s\n\nTotal PETs loaded n=%d\nPETs excluded n=%d\nPETs with both ends n=%d\nIntra-chrom PETs n=%d\nFiltered (span>%dbp) PETs n=%d\nTotal single reads n=%d", 
 				CommonUtils.timeElapsed(tic0), numTotalLoaded, numExcluded, numBothEnds, numIntraChrom, min_span, highEnds.size(), reads.size()));
@@ -1182,7 +1196,7 @@ public class CID {
 		// merge nearby clusters
 //		ArrayList<ReadPairCluster> tmp = clustersCalled;
 		if (isDev)
-			System.err.println("Merge nearby PET clusters ... " + CommonUtils.timeElapsed(tic0));
+			System.err.println("Merge nearby PET clusters (n="+clustersCalled.size()+") ... " + CommonUtils.timeElapsed(tic0));
 		int mergeIterations = 0;
 		while(true) {
 			long tic2 = System.currentTimeMillis();
@@ -1196,59 +1210,51 @@ public class CID {
 				System.err.print("Iter " + mergeIterations++ + ": " + CommonUtils.timeElapsed(tic2));
 			for (int i = 0; i < clustersCalled.size(); i++) {
 				ReadPairCluster c1 = clustersCalled.get(i);
-	//				if (c1.leftRegion.overlaps(new Region(genome, "13", 23562420, 23564665)))	//13:23562420-23564665
-	//					i+=0;
 				// Always remove c2, keep c1 updated
 				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
+				int merge_dist = span2mergingDist(c1.span);
+				String c1Chrom = c1.leftPoint.getChrom();
+				int c1LeftCoord = c1.leftPoint.getLocation();
+				int c1RightCoord = c1.rightPoint.getLocation();
+				int c1PetCount = c1.pets.size();
 	//			if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
 	//				continue;	// if c1 anchors are too wide, skip merging c1
 				for (int jj = i+1; jj < clustersCalled.size(); jj++) {
 					ReadPairCluster c2 = clustersCalled.get(jj);
-					if (!c1.leftPoint.getChrom().equals(c2.leftPoint.getChrom()))
+					if (!c1Chrom.equals(c2.leftPoint.getChrom()))
 						break;
-					int span = Math.max(c1.span, c2.span);
-					int merge_dist = span2mergingDist(span);
-					if (c1.leftPoint.distance(c2.leftPoint)>merge_dist*2)	// too far (clustersCalled is sorted by leftPoints)
+					if (Math.abs(c1LeftCoord - c2.leftPoint.getLocation())>merge_dist*2)	// too far (clustersCalled is sorted by leftPoints)
 						break;	// early stop
-					if (c1.distance(c2)>merge_dist*2)
+					if (Math.abs(c1RightCoord - c2.rightPoint.getLocation())>merge_dist*2)	// has checked left side, now checks right side
 						continue;
 					
 	//				if (c2.r1width*span_anchor_ratio>c2Span || c2.r2width*span_anchor_ratio>c2Span)
 	//					continue;	// if c2 anchors are too wide, skip merging c2
 					int newR1Width = Math.max(c1.r1max, c2.r1max)-Math.min(c1.r1min, c2.r1min);
 					int newR2Width = Math.max(c1.r2max, c2.r2max)-Math.min(c1.r2min, c2.r2min);
-					double newDensity = c1.calcDensity(c1.pets.size()+c2.pets.size(), newR1Width, newR2Width, merge_dist)*1.5;
-					
+//					double newDensity = c1.calcDensity(c1.pets.size()+c2.pets.size(), newR1Width, newR2Width, merge_dist)*1.5;
+					double newDensity = 1000000.0*(c1PetCount+c2.pets.size())/((newR1Width+2*merge_dist)*(newR2Width+2*merge_dist))*1.5;
 					if (c1.density > newDensity && c2.density > newDensity) 		// if merged RPC has lower density, skip
 						continue;
-					// if close enough, simply merge c2 to c1
+					// if close enough, merge c2 to c1
 					toRemoveClusters.add(c2);
 					boolean toSetAnchorPoints = false;
-					Point left = null; 
-					Point right  = null;
+					boolean toUseC2AnchorPoints = false;
 					if (c1.pets.size()==c2.pets.size()){		// case 1, set anchors to mid points
 						toSetAnchorPoints = true;
 					}
-					else if (c1.pets.size()<c2.pets.size()){	// case 2, set anchors to c2
-						left = c2.leftPoint;
-						right = c2.rightPoint;
+					else if (c1PetCount<c2.pets.size()){		// case 2, set anchors to c2
+						toUseC2AnchorPoints = true;
 					} 
 					for (ReadPair rp2 : c2.pets)
 						c1.addReadPair(rp2);
 					c1.update(toSetAnchorPoints);
 					
-					if (!toSetAnchorPoints && left!=null){		// only with case 2, set anchors to c2
-						c1.leftPoint = left;
-						c1.rightPoint = right;
-						c1.span = left.distance(right);
+					if (toUseC2AnchorPoints){		// only with case 2, set anchors to c2
+						c1.leftPoint = c2.leftPoint;
+						c1.rightPoint = c2.rightPoint;
+						c1.span = c2.span;
 					}
-						
-	//				if (isDev) {
-	//					System.err.println(String.format("Merged %s with %s to %s - %s", c1_old, c2.toString(), c1.toString(), 
-	//							c1.getLoopRegionString(2000)));
-	//					dc+=0;
-	//				}
-					
 				} // for each c1 and c2
 				if (!toRemoveClusters.isEmpty()){
 					clustersCalled.removeAll(toRemoveClusters);
@@ -2876,7 +2882,8 @@ public class CID {
 			
 			// density: with padded width
 			int padding = span2mergingDist(span);
-			density = calcDensity(pets.size(),r1width,r2width,padding);
+//			density = calcDensity(pets.size(),r1width,r2width,padding);
+			density = 1000000.0*pets.size()/((r1width+2*padding)*(r2width+2*padding));
 		}
 		double calcDensity(int count, int r1width, int r2width, int padding) {
 			return (1000000.0*count)/((r1width+2*padding)*(r2width+2*padding));
