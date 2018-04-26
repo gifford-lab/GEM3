@@ -74,6 +74,7 @@ public class CID {
 		chiapet_radius = Args.parseInteger(args, "chiapet_radius", chiapet_radius);
 		numQuantile = Args.parseInteger(args, "num_span_quantile", numQuantile);
 		min_span = Args.parseInteger(args, "min_span", min_span);
+		min_pet_count = Args.parseInteger(args, "min_count", min_pet_count);
 		micc_min_pet = Args.parseInteger(args, "micc", micc_min_pet);
 	}
 
