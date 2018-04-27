@@ -661,7 +661,7 @@ public class CID {
 			}
 		});
 		// TODO: write filtered PET file
-		if (isDev) {
+		if (flags.contains("print_filtered_pets")) {
 			StringBuilder sb1 = new StringBuilder();
 			String fn = outName+".filteredPETs.txt";
 			CommonUtils.writeFile(fn, sb1.toString());
@@ -1198,6 +1198,26 @@ public class CID {
 //		ArrayList<ReadPairCluster> tmp = clustersCalled;
 		if (isDev)
 			System.err.println("Merge nearby PET clusters (n="+clustersCalled.size()+") ... " + CommonUtils.timeElapsed(tic0));
+		Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
+			public int compare(ReadPairCluster o1, ReadPairCluster o2) {
+				return o1.compareByLeftAnchorPoint(o2);
+			}
+		});
+		if (flags.contains("print_unmerged_rpcs")) {
+			StringBuilder sb1 = new StringBuilder();
+			String fn = outName+".unmergedRPCs.txt";
+			CommonUtils.writeFile(fn, sb1.toString());
+			for (ReadPairCluster rp: clustersCalled) {
+				sb1.append(rp.leftPoint.toString()).append("\t").append(rp.rightPoint.toString()).append("\n");
+				if (sb1.length()>10000000){
+					CommonUtils.appendFile(fn, sb1.toString());
+					sb1=new StringBuilder();
+				}		
+			}
+			CommonUtils.appendFile(fn, sb1.toString());
+			sb1 = null;
+		}
+		
 		int mergeIterations = 0;
 		while(true) {
 			long tic2 = System.currentTimeMillis();
@@ -1211,33 +1231,28 @@ public class CID {
 				System.err.print("Iter " + mergeIterations++ + ": " + CommonUtils.timeElapsed(tic2));
 			for (int i = 0; i < clustersCalled.size(); i++) {
 				ReadPairCluster c1 = clustersCalled.get(i);
-				// Always remove c2, keep c1 updated
+				// Always remove c2, keep c1 updated, so that the list idx is not messed up
 				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
-				int merge_dist = span2mergingDist(c1.span);
+				int merge_dist2 = span2mergingDist(c1.span)*2;
 				String c1Chrom = c1.leftPoint.getChrom();
 				int c1LeftCoord = c1.leftPoint.getLocation();
 				int c1RightCoord = c1.rightPoint.getLocation();
 				int c1PetCount = c1.pets.size();
-	//			if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
-	//				continue;	// if c1 anchors are too wide, skip merging c1
 				for (int jj = i+1; jj < clustersCalled.size(); jj++) {
 					ReadPairCluster c2 = clustersCalled.get(jj);
 					if (!c1Chrom.equals(c2.leftPoint.getChrom()))
 						break;
-					if (Math.abs(c1LeftCoord - c2.leftPoint.getLocation())>merge_dist*2)	// too far (clustersCalled is sorted by leftPoints)
+					if (Math.abs(c1LeftCoord - c2.leftPoint.getLocation())>merge_dist2)	// too far (clustersCalled is sorted by leftPoints)
 						break;	// early stop
-					if (Math.abs(c1RightCoord - c2.rightPoint.getLocation())>merge_dist*2)	// has checked left side, now checks right side
+					if (Math.abs(c1RightCoord - c2.rightPoint.getLocation())>merge_dist2)	// has checked left side, now checks right side
 						continue;
 					
-	//				if (c2.r1width*span_anchor_ratio>c2Span || c2.r2width*span_anchor_ratio>c2Span)
-	//					continue;	// if c2 anchors are too wide, skip merging c2
 					int newR1Width = Math.max(c1.r1max, c2.r1max)-Math.min(c1.r1min, c2.r1min);
 					int newR2Width = Math.max(c1.r2max, c2.r2max)-Math.min(c1.r2min, c2.r2min);
-//					double newDensity = c1.calcDensity(c1.pets.size()+c2.pets.size(), newR1Width, newR2Width, merge_dist)*1.5;
-					double newDensity = 1000000.0*(c1PetCount+c2.pets.size())/((newR1Width+2*merge_dist)*(newR2Width+2*merge_dist))*1.5;
+					double newDensity = 1000000.0*(c1PetCount+c2.pets.size())*1.5 / ((newR1Width+merge_dist2)*(newR2Width+merge_dist2));
 					if (c1.density > newDensity && c2.density > newDensity) 		// if merged RPC has lower density, skip
 						continue;
-					// if close enough, merge c2 to c1
+					// if density is high enough, merge c2 to c1
 					toRemoveClusters.add(c2);
 					boolean toSetAnchorPoints = false;
 					boolean toUseC2AnchorPoints = false;
@@ -1256,7 +1271,7 @@ public class CID {
 						c1.rightPoint = c2.rightPoint;
 						c1.span = c2.span;
 					}
-				} // for each c1 and c2
+				} // for each c2
 				if (!toRemoveClusters.isEmpty()){
 					clustersCalled.removeAll(toRemoveClusters);
 					toRemoveClusters.clear();
