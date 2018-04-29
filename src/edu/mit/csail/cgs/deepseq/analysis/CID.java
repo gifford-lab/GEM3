@@ -1021,8 +1021,7 @@ public class CID {
 		if (flags.contains("print_cluster")){
 			StringBuilder sbDensityDetails = new StringBuilder();
 			ReadPairCluster rpc = new ReadPairCluster();
-			for (ReadPair rp: high)
-				rpc.addReadPair(rp);
+			rpc.pets.addAll(high);
 			rpc.update(false);
 			sbDensityDetails.append(String.format("# %s:%d-%d\n", rpc.leftRegion.getChrom(), rpc.r1min, rpc.r2max));
 			densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sbDensityDetails);
@@ -1069,7 +1068,7 @@ public class CID {
 					}
 					c = new ReadPairCluster();
 				}
-				c.addReadPair(rp);
+				c.pets.add(rp);
 				current = rp.r2.getLocation();
 			}
 			if (c.pets.size() >= min_pet_count) { // finish up the last cluster
@@ -1096,8 +1095,7 @@ public class CID {
 			}
 			else
 				continue;
-			// after the recursive splitting, all the rpcs should be 3kb away from each other, 
-			// with each PET having at least 1 PET within less than 3kb
+			// after the recursive splitting, all the rpcs should be max_cluster_merge_dist away from each other, 
 			// therefore, the density clustering and merging operate on independent rpcs
 			
 			// density clustering of PETs 
@@ -1262,8 +1260,7 @@ public class CID {
 					else if (c1PetCount<c2.pets.size()){		// case 2, set anchors to c2
 						toUseC2AnchorPoints = true;
 					} 
-					for (ReadPair rp2 : c2.pets)
-						c1.addReadPair(rp2);
+					c1.pets.addAll(c2.pets);
 					c1.update(toSetAnchorPoints);
 					
 					if (toUseC2AnchorPoints){		// only with case 2, set anchors to c2
@@ -1296,7 +1293,7 @@ public class CID {
 			for (int i : idx2) {
 				ReadPair rp = low.get(i);
 				if (cc.rightRegion.contains(rp.r2) && unusedPET2.contains(rp))
-					cc.addReadPair(rp);
+					cc.pets.add(rp);
 			}
 			cc.update(false);
 		}
@@ -1485,7 +1482,7 @@ public class CID {
 				}
 //				System.out.println(" --> "+min+"["+minId+"]");
 				if (minId>-1)
-					rpcs[minId].addReadPair(rp);
+					rpcs[minId].pets.add(rp);
 			}
 			// secondary assignment
 			for (int i=0;i<rpcs.length;i++) {
@@ -1507,7 +1504,7 @@ public class CID {
 						}
 					}
 					if (minId>-1)
-						rpcs[minId].addReadPair(rp);
+						rpcs[minId].pets.add(rp);
 					rpcs[i].pets.clear();
 				}
 			}
@@ -1556,8 +1553,7 @@ public class CID {
 									receiver = rpcj;
 								}
 							}
-							for(ReadPair rp: donor.pets)
-								receiver.addReadPair(rp);
+							receiver.pets.addAll(donor.pets);
 							receiver.update(false);
 							donor.pets.clear();
 						}
@@ -1591,8 +1587,7 @@ public class CID {
 				if (c1.pets.size()>c2.pets.size()) {		// merge to c2, if it is smaller size, copy c1 infos
 					c2.d_c = c1.d_c;
 				}
-				for(ReadPair rp: c1.pets)
-					c2.addReadPair(rp);
+				c2.pets.addAll(c1.pets);
 				c2.update(false);
 				c1.pets.clear();
 				toRemoveClusters.add(c1);
@@ -1743,7 +1738,8 @@ public class CID {
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
 	
-	/** Density Clustering, start with a rough clustering to reduce to smaller clusters, then refine with more accurate span distances */	
+	/** Density Clustering, start with a rough clustering to reduce to smaller clusters, 
+	 * then refine with more accurate span distances recursively */	
 	private ArrayList<ReadPairCluster> densityClustering(ReadPairCluster cc, int d_c, StringBuilder sb){
 		ArrayList<ReadPairCluster> results = new ArrayList<ReadPairCluster>();
 		ArrayList<ReadPair> pets = cc.pets;
@@ -1958,7 +1954,7 @@ public class CID {
 				PetBin m = bins[i];
 				if (m.clusterBinId == bid){		// cluster member
 					ReadPair rp = pets.get(m.binId);
-					rpc.addReadPair(rp);
+					rpc.pets.add(rp);
 					if (bid==m.binId){		// cluster center
 						rpc.leftPoint = rp.r1;
 						rpc.rightPoint = rp.r2;
@@ -2325,8 +2321,7 @@ public class CID {
 			for (int idx: splitIndices){
 				ReadPairCluster c = new ReadPairCluster();
 				for (int i=start; i<idx; i++){
-					for (ReadPair rp : map.get(points.get(i)))
-						c.addReadPair(rp);
+					c.pets.addAll(map.get(points.get(i)));
 				}
 				start = idx;
 				if (c.pets.size() < min_pet_count)
@@ -2873,49 +2868,55 @@ public class CID {
 		 * if toSetAnchorPoints=false; keep the points as assigned from density clustering
 		 */
 		void update(boolean toSetAnchorPoints){
-			r1width = r1max - r1min;
-			r2width = r2max - r2min;
 			Point r1 = pets.get(0).r1;
 			Point r2 = pets.get(0).r2;
+			int n = pets.size();
+			int[] r1s = new int[n];
+			int[] r2s = new int[n];
+			for (int i=0;i<n;i++) {
+				r1s[i]=pets.get(i).r1.getLocation();
+				r2s[i]=pets.get(i).r2.getLocation();
+			}
+			Arrays.sort(r1s);Arrays.sort(r2s);
+			r1min=r1s[0];
+			r1max=r1s[n-1];
+			r2min=r2s[0];
+			r2max=r2s[n-1];
 			if (toSetAnchorPoints){
-				sortByRead1();
-				int size = pets.size();
-				if (size % 2 == 1)
-					leftPoint = (Point) pets.get(size/2).r1;
+				if (n % 2 == 1)
+					leftPoint = new Point(r1.getGenome(), r1.getChrom(),r1s[n/2]);
 				else
-					leftPoint = new Point(r1.getGenome(), r1.getChrom(), 
-							(pets.get(size/2).r1.getLocation()+pets.get(size/2-1).r1.getLocation())/2);
-				sortByRead2();
-				if (size % 2 == 1)
-					rightPoint = (Point) pets.get(size/2).r2;
+					leftPoint = new Point(r1.getGenome(), r1.getChrom(), (r1s[n/2]+r1s[n/2-1])/2);
+				if (n % 2 == 1)
+					rightPoint = new Point(r2.getGenome(), r2.getChrom(),r2s[n/2]);
 				else
-					rightPoint = new Point(r2.getGenome(), r2.getChrom(), 
-							(pets.get(size/2).r2.getLocation()+pets.get(size/2-1).r2.getLocation())/2);
+					rightPoint = new Point(r2.getGenome(), r2.getChrom(),  (r2s[n/2]+r2s[n/2-1])/2);
 				span = leftPoint.distance(rightPoint);
 			}
+			r1width = r1max - r1min;
+			r2width = r2max - r2min;
 			leftRegion = new Region(r1.getGenome(), r1.getChrom(), r1min, r1max);
 			rightRegion = new Region(r2.getGenome(), r2.getChrom(), r2min, r2max);
 			
 			// density: with padded width
 			int padding = span2mergingDist(span);
-//			density = calcDensity(pets.size(),r1width,r2width,padding);
 			density = 1000000.0*pets.size()/((r1width+2*padding)*(r2width+2*padding));
 		}
-		double calcDensity(int count, int r1width, int r2width, int padding) {
-			return (1000000.0*count)/((r1width+2*padding)*(r2width+2*padding));
-		}
+//		double calcDensity(int count, int r1width, int r2width, int padding) {
+//			return (1000000.0*count)/((r1width+2*padding)*(r2width+2*padding));
+//		}
 		
-		void addReadPair(ReadPair rp) {
-			if (r1min > rp.r1.getLocation())
-				r1min = rp.r1.getLocation();
-			if (r2min > rp.r2.getLocation())
-				r2min = rp.r2.getLocation();
-			if (r1max < rp.r1.getLocation())
-				r1max = rp.r1.getLocation();
-			if (r2max < rp.r2.getLocation())
-				r2max = rp.r2.getLocation();
-			pets.add(rp);
-		}
+//		void addReadPair(ReadPair rp) {
+//			if (r1min > rp.r1.getLocation())
+//				r1min = rp.r1.getLocation();
+//			if (r2min > rp.r2.getLocation())
+//				r2min = rp.r2.getLocation();
+//			if (r1max < rp.r1.getLocation())
+//				r1max = rp.r1.getLocation();
+//			if (r2max < rp.r2.getLocation())
+//				r2max = rp.r2.getLocation();
+//			pets.add(rp);
+//		}
 
 		public int compareByLeftAnchorPoint(ReadPairCluster rpc) {
 			int chromCompare = this.leftPoint.getChrom().compareTo(rpc.leftPoint.getChrom());
