@@ -1895,6 +1895,8 @@ public class CID {
 					continue;	// if c1 anchors are too wide, skip merging c1
 				for (int jj = i+1; jj < rpcs.size(); jj++) {
 					ReadPairCluster c2 = rpcs.get(jj);
+					if (!c1.leftPoint.getChrom().equals(c2.leftPoint.getChrom()))
+						break;
 					int c2Span = c2.span;
 					if (c2.r1width*span_anchor_ratio>c2Span || c2.r2width*span_anchor_ratio>c2Span)
 						continue;	// if c2 anchors are too wide, skip merging c2
