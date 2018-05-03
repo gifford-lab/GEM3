@@ -491,7 +491,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180425\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180503\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -1117,7 +1117,12 @@ public class CID {
 			for (ReadPairCluster rpc: rpcs){
 				int span = rpc.getLoopRegionWidth();
 				ArrayList<ReadPairCluster> clustered = densityClustering(rpc, span2mergingDist(span), sbDensityDetails);
-				mergeReadPairClusters(clustered);
+				if (clustered.size()>1 && flags.contains("local_merge")) {
+					if (flags.contains("merge2"))
+						mergeReadPairClusters2(clustered);
+					else
+						mergeReadPairClusters(clustered);
+				}
 				tmp.addAll(clustered);
 			}
 			rpcs = tmp;
@@ -1151,8 +1156,12 @@ public class CID {
 //			CommonUtils.appendFile(fn, sb1.toString());
 //			sb1 = null;
 //		}
-		
-//		mergeReadPairClusters(clustersCalled);
+		if (!flags.contains("local_merge")) {
+			if (flags.contains("merge2"))
+				mergeReadPairClusters2(clustersCalled);
+			else
+				mergeReadPairClusters(clustersCalled);
+		}
 		
 		// refresh the PETs again because some PET1 might not be
 		// included but are within the cluster_merge_dist range
@@ -1867,7 +1876,79 @@ public class CID {
 		}
 		return newResults;
 	}
-
+	/**
+	 * Merge RPCs<br>
+	 * clustersCalled is modified after merging
+	 */
+	private void mergeReadPairClusters2(ArrayList<ReadPairCluster> rpcs ) {
+		while(true) {
+//			long tic2 = System.currentTimeMillis();
+			int num = rpcs.size();
+			// merge nearby clusters
+			Collections.sort(rpcs);
+			for (int i = 0; i < rpcs.size(); i++) {
+				ReadPairCluster c1 = rpcs.get(i);
+				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
+				int c1Span = c1.span;
+				int c1PetCount = c1.pets.size();
+				if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
+					continue;	// if c1 anchors are too wide, skip merging c1
+				for (int jj = i+1; jj < rpcs.size(); jj++) {
+					ReadPairCluster c2 = rpcs.get(jj);
+					int c2Span = c2.span;
+					if (c2.r1width*span_anchor_ratio>c2Span || c2.r2width*span_anchor_ratio>c2Span)
+						continue;	// if c2 anchors are too wide, skip merging c2
+					// cluster_merge_dist is dependent on the PET span distance
+					int dist = Math.min(c1Span, c2Span);
+					int newR1Width = Math.max(c1.r1max, c2.r1max)-Math.min(c1.r1min, c2.r1min);
+					int newR2Width = Math.max(c1.r2max, c2.r2max)-Math.min(c1.r2min, c2.r2min);
+					if ((newR1Width*span_anchor_ratio>dist*1.5 || newR2Width*span_anchor_ratio>dist*1.5 )
+						&& (newR1Width > 2000 || newR1Width >2000))
+						continue;	// if merged anchors are too wide (>2kb and span/ratio), skip merging
+					int cluster_merge_dist = span2mergingDist(dist);
+					if (c1.leftPoint.distance(c2.leftPoint) > cluster_merge_dist*2 || 
+							c1.rightPoint.distance(c2.rightPoint) > cluster_merge_dist*2 ||
+							c1.leftRegion.distance(c2.leftRegion) > cluster_merge_dist ||
+							c1.rightRegion.distance(c2.rightRegion) > cluster_merge_dist) 
+						continue;
+					// if close enough, simply merge c2 to c1
+					toRemoveClusters.add(c2);
+					boolean toSetAnchorPoints = false;
+					boolean toUseC2AnchorPoints = false;
+					if (c1.pets.size()==c2.pets.size()){		// case 1, set anchors to mid points
+						toSetAnchorPoints = true;
+					}
+					else if (c1PetCount<c2.pets.size()){		// case 2, set anchors to c2
+						toUseC2AnchorPoints = true;
+					} 
+					c1.pets.addAll(c2.pets);
+					c1.update(toSetAnchorPoints);
+					
+					if (toUseC2AnchorPoints){		// only with case 2, set anchors to c2
+						c1.leftPoint = c2.leftPoint;
+						c1.rightPoint = c2.rightPoint;
+						c1.span = c2.span;
+					}
+						
+					c1Span = c1.span;
+		//				if (isDev)
+		//					System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
+		//							c1.getLoopRegionString(2000)));
+					if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
+						break;		// if c1 anchors are too wide, stop merging c1
+				} // for each pair of nearby clusters
+				if (!toRemoveClusters.isEmpty()){
+					rpcs.removeAll(toRemoveClusters);
+					toRemoveClusters.clear();
+				}
+				toRemoveClusters = null;
+			}	// for each c1
+			// if no change, break
+			if (rpcs.size()==num)
+				break;
+		} // while true
+	}
+	
 	/**
 	 * Merge RPCs<br>
 	 * clustersCalled is modified after merging
