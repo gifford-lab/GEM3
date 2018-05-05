@@ -5773,6 +5773,8 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
 			System.out.println("Running single-stranded KMAC motif discovery ...\n");
 
         System.out.println(String.format("Loaded %d input positive sequences.", pos_seqs.size()));
+        if (!neg_seqs.isEmpty())
+        System.out.println(String.format("Loaded %d input negative sequences.\n", neg_seqs.size()));
         kmac.loadFileSequences(pos_seqs, neg_seqs, seq_w);
         pos_seqs.clear();
         neg_seqs.clear();
@@ -5785,7 +5787,6 @@ private void mergeOverlapPwmMotifs (ArrayList<MotifCluster> clusters, ArrayList<
         }
         System.out.println("Done: "+CommonUtils.timeElapsed(tic));
 	}
-
 		
 } 
 
