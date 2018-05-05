@@ -491,7 +491,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180503\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180504\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -1612,10 +1612,46 @@ public class CID {
 		high = null;
 		System.out.println("\nClustered PETs n=" + usedPETs.size() + "\nSingle PETs n=" + low.size());
 
+		// remove PET1 that are not spanning across anchors
+		ArrayList<Region> leftRegions = new ArrayList<>();
+		ArrayList<Region> rightRegions = new ArrayList<>();
+		for (Interaction it: interactions) {
+			leftRegions.add(it.leftRegion);
+			rightRegions.add(it.rightRegion);
+		}
+		ArrayList<Point> lowEndsPet1 = new ArrayList<Point>();
+		ArrayList<Point> highEndsPet1 = new ArrayList<Point>();
+		TreeMap<Point,Integer> highEndsToIdx = new TreeMap<Point,Integer>();
+		for (int i=0;i<low.size();i++) {
+			ReadPair rp = low.get(i);
+			lowEndsPet1.add(rp.r1);
+			highEndsPet1.add(rp.r2);
+			highEndsToIdx.put(rp.r2, i);
+		}
+		Collections.sort(highEndsPet1);
+		leftRegions = Region.mergeRegions(leftRegions);
+		rightRegions = Region.mergeRegions(rightRegions);
+		HashSet<Integer> leftIdx = new HashSet<Integer> ();
+		HashSet<Integer> rightIdx = new HashSet<Integer> ();
+		for (Region r: leftRegions) {
+			leftIdx.addAll(CommonUtils.getPointsIdxWithinWindow(lowEndsPet1, r));
+		}
+		for (Region r: rightRegions) {
+			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(highEndsPet1, r);
+			for (int i:idx)
+				rightIdx.add(highEndsToIdx.get(highEndsPet1.get(i)));
+		}
+		leftIdx.retainAll(rightIdx);		
+		ArrayList<ReadPair> singletonPets = new ArrayList<ReadPair>();
+		for (int i:leftIdx)
+			singletonPets.add(low.get(i));
+		singletonPets.trimToSize();
+		System.out.println("Single PETs in anchors n=" + singletonPets.size());
+		
 		/******************************
 		 * Annotate and report
 		 *******************************/
-		annotateInteractionCallsAndOutput(interactions, lowEnds, highEnds, low, tic0);
+		annotateInteractionCallsAndOutput(interactions, lowEnds, highEnds, singletonPets, tic0);
 		
 		System.out.println("\nDone: " + CommonUtils.timeElapsed(tic0));
 	}
@@ -2266,7 +2302,7 @@ public class CID {
 		/** 
 		 * output BEDPE format
 		 */
-		// HERE we need to also include PET1 for MICC and ChiaSig analysis
+		// Also include PET1 for MICC and ChiaSig analysis
 		if (micc_min_pet==1){
 			for (ReadPair rp : singleton_pets) {
 				Interaction it = new Interaction();
