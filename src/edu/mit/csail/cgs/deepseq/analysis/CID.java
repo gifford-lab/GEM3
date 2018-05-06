@@ -1612,41 +1612,45 @@ public class CID {
 		high = null;
 		System.out.println("\nClustered PETs n=" + usedPETs.size() + "\nSingle PETs n=" + low.size());
 
-		// remove PET1 that are not spanning across anchors
-		ArrayList<Region> leftRegions = new ArrayList<>();
-		ArrayList<Region> rightRegions = new ArrayList<>();
-		for (Interaction it: interactions) {
-			leftRegions.add(it.leftRegion);
-			rightRegions.add(it.rightRegion);
-		}
-		ArrayList<Point> lowEndsPet1 = new ArrayList<Point>();
-		ArrayList<Point> highEndsPet1 = new ArrayList<Point>();
-		TreeMap<Point,Integer> highEndsToIdx = new TreeMap<Point,Integer>();
-		for (int i=0;i<low.size();i++) {
-			ReadPair rp = low.get(i);
-			lowEndsPet1.add(rp.r1);
-			highEndsPet1.add(rp.r2);
-			highEndsToIdx.put(rp.r2, i);
-		}
-		Collections.sort(highEndsPet1);
-		leftRegions = Region.mergeRegions(leftRegions);
-		rightRegions = Region.mergeRegions(rightRegions);
-		HashSet<Integer> leftIdx = new HashSet<Integer> ();
-		HashSet<Integer> rightIdx = new HashSet<Integer> ();
-		for (Region r: leftRegions) {
-			leftIdx.addAll(CommonUtils.getPointsIdxWithinWindow(lowEndsPet1, r));
-		}
-		for (Region r: rightRegions) {
-			ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(highEndsPet1, r);
-			for (int i:idx)
-				rightIdx.add(highEndsToIdx.get(highEndsPet1.get(i)));
-		}
-		leftIdx.retainAll(rightIdx);		
 		ArrayList<ReadPair> singletonPets = new ArrayList<ReadPair>();
-		for (int i:leftIdx)
-			singletonPets.add(low.get(i));
-		singletonPets.trimToSize();
-		System.out.println("Single PETs in anchors n=" + singletonPets.size());
+		if (flags.contains("pet1anchor")) {
+			// remove PET1 that are not spanning across anchors
+			ArrayList<Region> leftRegions = new ArrayList<>();
+			ArrayList<Region> rightRegions = new ArrayList<>();
+			for (Interaction it: interactions) {
+				leftRegions.add(it.leftRegion);
+				rightRegions.add(it.rightRegion);
+			}
+			ArrayList<Point> lowEndsPet1 = new ArrayList<Point>();
+			ArrayList<Point> highEndsPet1 = new ArrayList<Point>();
+			TreeMap<Point,Integer> highEndsToIdx = new TreeMap<Point,Integer>();
+			for (int i=0;i<low.size();i++) {
+				ReadPair rp = low.get(i);
+				lowEndsPet1.add(rp.r1);
+				highEndsPet1.add(rp.r2);
+				highEndsToIdx.put(rp.r2, i);
+			}
+			Collections.sort(highEndsPet1);
+			leftRegions = Region.mergeRegions(leftRegions);
+			rightRegions = Region.mergeRegions(rightRegions);
+			HashSet<Integer> leftIdx = new HashSet<Integer> ();
+			HashSet<Integer> rightIdx = new HashSet<Integer> ();
+			for (Region r: leftRegions) {
+				leftIdx.addAll(CommonUtils.getPointsIdxWithinWindow(lowEndsPet1, r));
+			}
+			for (Region r: rightRegions) {
+				ArrayList<Integer> idx = CommonUtils.getPointsIdxWithinWindow(highEndsPet1, r);
+				for (int i:idx)
+					rightIdx.add(highEndsToIdx.get(highEndsPet1.get(i)));
+			}
+			leftIdx.retainAll(rightIdx);		
+			for (int i:leftIdx)
+				singletonPets.add(low.get(i));
+			singletonPets.trimToSize();
+			System.out.println("Single PETs in anchors n=" + singletonPets.size());
+		}
+		else
+			singletonPets = low;
 		
 		/******************************
 		 * Annotate and report
