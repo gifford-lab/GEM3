@@ -491,11 +491,18 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180504\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180516\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
-
+		
+		// default mode: local merge2
+		boolean local_merge = true;
+		boolean merge2 = true;
+		if (flags.contains("broad")) {		// if broad mode, global, merge1, can override
+			merge2 = flags.contains("merge2");
+			local_merge = flags.contains("local_merge");
+		}
 		// load read pairs
 		// PETS: same chromosome, and longer than min_distance distance; 
 		// the left read is required to be lower than the right read; if not, flip 
@@ -1117,8 +1124,8 @@ public class CID {
 			for (ReadPairCluster rpc: rpcs){
 				int span = rpc.getLoopRegionWidth();
 				ArrayList<ReadPairCluster> clustered = densityClustering(rpc, span2mergingDist(span), sbDensityDetails);
-				if (clustered.size()>1 && flags.contains("local_merge")) {
-					if (flags.contains("merge2"))
+				if (clustered.size()>1 && local_merge) {
+					if (merge2)
 						mergeReadPairClusters2(clustered);
 					else
 						mergeReadPairClusters(clustered);
@@ -1134,30 +1141,8 @@ public class CID {
 			clustersCalled.addAll(rpcs);
 		} // loop over all regions
 
-		// merge nearby clusters
-//		if (isDev)
-//			System.err.println("Merge nearby PET clusters (n="+clustersCalled.size()+") ... " + CommonUtils.timeElapsed(tic0));
-//		Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
-//			public int compare(ReadPairCluster o1, ReadPairCluster o2) {
-//				return o1.compareByLeftAnchorPoint(o2);
-//			}
-//		});
-//		if (flags.contains("print_unmerged_rpcs")) {
-//			StringBuilder sb1 = new StringBuilder();
-//			String fn = outName+".unmergedRPCs.txt";
-//			CommonUtils.writeFile(fn, sb1.toString());
-//			for (ReadPairCluster rp: clustersCalled) {
-//				sb1.append(rp.leftPoint.toString()).append("\t").append(rp.rightPoint.toString()).append("\n");
-//				if (sb1.length()>10000000){
-//					CommonUtils.appendFile(fn, sb1.toString());
-//					sb1=new StringBuilder();
-//				}		
-//			}
-//			CommonUtils.appendFile(fn, sb1.toString());
-//			sb1 = null;
-//		}
-		if (!flags.contains("local_merge")) {
-			if (flags.contains("merge2"))
+		if (!local_merge) {		// global merge
+			if (merge2)
 				mergeReadPairClusters2(clustersCalled);
 			else
 				mergeReadPairClusters(clustersCalled);
@@ -1917,12 +1902,11 @@ public class CID {
 		return newResults;
 	}
 	/**
-	 * Merge RPCs<br>
+	 * Merge RPCs by anchor_width/loop_span ratio<br>
 	 * clustersCalled is modified after merging
 	 */
 	private void mergeReadPairClusters2(ArrayList<ReadPairCluster> rpcs ) {
 		while(true) {
-//			long tic2 = System.currentTimeMillis();
 			int num = rpcs.size();
 			// merge nearby clusters
 			Collections.sort(rpcs);
@@ -1973,9 +1957,6 @@ public class CID {
 					}
 						
 					c1Span = c1.span;
-		//				if (isDev)
-		//					System.err.println(String.format("Merged %s with %s to %s - %s.", c1_old, c2.toString(), c1.toString(), 
-		//							c1.getLoopRegionString(2000)));
 					if (c1.r1width*span_anchor_ratio>c1Span || c1.r2width*span_anchor_ratio>c1Span)
 						break;		// if c1 anchors are too wide, stop merging c1
 				} // for each pair of nearby clusters
@@ -1992,24 +1973,19 @@ public class CID {
 	}
 	
 	/**
-	 * Merge RPCs<br>
+	 * Merge RPCs by evaluating density<br>
 	 * clustersCalled is modified after merging
 	 */
 	private void mergeReadPairClusters(ArrayList<ReadPairCluster> clustersCalled ) {
-//		int mergeIterations = 0;
 		while(true) {
-//			long tic2 = System.currentTimeMillis();
 			int num = clustersCalled.size();
 			Collections.sort(clustersCalled, new Comparator<ReadPairCluster>() {
 				public int compare(ReadPairCluster o1, ReadPairCluster o2) {
 					return o1.compareByLeftAnchorPoint(o2);
 				}
 			});
-//			if (isDev)
-//				System.err.print("Iter " + mergeIterations++ + ": " + CommonUtils.timeElapsed(tic2));
-//			StringBuilder sb0 = new StringBuilder();
+			
 			for (int i = 0; i < clustersCalled.size(); i++) {
-				
 				ReadPairCluster c1 = clustersCalled.get(i);
 				// Always remove c2, keep c1 updated, so that the list idx is not messed up
 				ArrayList<ReadPairCluster> toRemoveClusters = new ArrayList<ReadPairCluster>();
@@ -2018,26 +1994,20 @@ public class CID {
 				int c1LeftCoord = c1.leftPoint.getLocation();
 				int c1RightCoord = c1.rightPoint.getLocation();
 				int c1PetCount = c1.pets.size();
-//				int leftN = 0;
-//				int rightN = 0;
-//				int densityN =0;
 				for (int jj = i+1; jj < clustersCalled.size(); jj++) {
 					ReadPairCluster c2 = clustersCalled.get(jj);
 					if (!c1Chrom.equals(c2.leftPoint.getChrom()))
 						break;
 					if (Math.abs(c1LeftCoord - c2.leftPoint.getLocation())>merge_dist2)	// too far (clustersCalled is sorted by leftPoints)
 						break;	// early stop
-//					leftN++;
 					if (Math.abs(c1RightCoord - c2.rightPoint.getLocation())>merge_dist2)	// has checked left side, now checks right side
 						continue;
-//					rightN++;
 					
 					int newR1Width = Math.max(c1.r1max, c2.r1max)-Math.min(c1.r1min, c2.r1min);
 					int newR2Width = Math.max(c1.r2max, c2.r2max)-Math.min(c1.r2min, c2.r2min);
 					double newDensity = 1000000.0*(c1PetCount+c2.pets.size())*1.5 / ((newR1Width+merge_dist2)*(newR2Width+merge_dist2));
 					if (c1.density > newDensity && c2.density > newDensity) 		// if merged RPC has lower density, skip
 						continue;
-//					densityN++;
 					// if density is high enough, merge c2 to c1
 					toRemoveClusters.add(c2);
 					boolean toSetAnchorPoints = false;
@@ -2057,26 +2027,17 @@ public class CID {
 						c1.span = c2.span;
 					}
 				} // for each c2
-//				if (leftN+rightN+densityN>0) {
-//					sb0.append(String.format("\n%d %d: %d %d %d", i,c1LeftCoord,leftN,rightN,densityN));
-//					if (sb0.length()>10000000){
-//						CommonUtils.appendFile(Args.parseString(args, "out", "Result") + "debug.txt", sb0.toString());
-//						sb0=new StringBuilder();
-//					}
-//				}
 				if (!toRemoveClusters.isEmpty()){
 					clustersCalled.removeAll(toRemoveClusters);
 					toRemoveClusters.clear();
 				}
 			} // for each c1
-//			CommonUtils.appendFile(Args.parseString(args, "out", "Result") + ".debug.txt", sb0.toString());
-//			if (isDev)
-//				System.err.println(", merged "+(num-clustersCalled.size())+", " + CommonUtils.timeElapsed(tic2));
 			// if no change, break
 			if (clustersCalled.size()==num)
 				break;
 		} // while true
 	}
+	
 	/**
 	 * Annotate after CID interaction calling and then print output files
 	 */
