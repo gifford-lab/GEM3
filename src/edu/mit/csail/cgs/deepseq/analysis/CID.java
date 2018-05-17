@@ -496,10 +496,10 @@ public class CID {
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
 		
-		// default mode: local merge2
+		// default mode: local merge2, good for broad factors such as Pol2, HistoneMark
 		boolean local_merge = true;
 		boolean merge2 = true;
-		if (flags.contains("broad")) {		// if broad mode, global, merge1, can override
+		if (flags.contains("narrow")) {		// if narrow mode, global, merge1, can override
 			merge2 = flags.contains("merge2");
 			local_merge = flags.contains("local_merge");
 		}
