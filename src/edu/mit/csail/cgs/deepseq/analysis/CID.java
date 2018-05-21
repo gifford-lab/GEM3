@@ -491,7 +491,7 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180516\n");
+		System.out.println("Chromatin Interaction Discovery (CID), version 0.180521\n");
 		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
@@ -544,7 +544,7 @@ public class CID {
 	        int numFields  = bin.readLine().split("\t").length;
 	        boolean isBEDPE = numFields >= 6;
 	    		if (isBEDPE){
-	    			System.out.println("\nDetected input data to be BEDPE format!");
+	    			System.out.println("Detected input data to be BEDPE format!");
 	    			if (numFields<10){
 	    				System.err.println("Wrong BEDPE format. The columns 9 and 10 should be the strand information of the two read ends.");
 	    				System.exit(-1);
@@ -692,7 +692,7 @@ public class CID {
 			highEnds.add(r.r2);
 		highEnds.trimToSize();
 
-		System.out.println(String.format("\nRead pair data loaded: %s\n\nTotal PETs loaded n=%d\nPETs excluded n=%d\nPETs with both ends n=%d\nIntra-chrom PETs n=%d\nFiltered (span>%dbp) PETs n=%d\nTotal single reads n=%d", 
+		System.out.println(String.format("Read pair data loaded: %s\n\nTotal PETs loaded n=%d\nPETs excluded n=%d\nPETs with both ends n=%d\nIntra-chrom PETs n=%d\nFiltered (span>%dbp) PETs n=%d\nTotal single reads n=%d", 
 				CommonUtils.timeElapsed(tic0), numTotalLoaded, numExcluded, numBothEnds, numIntraChrom, min_span, highEnds.size(), reads.size()));
 		if (flags.contains("stats_only")) {
 			System.out.println("\nstats_only is on, exit here.");
@@ -1142,10 +1142,12 @@ public class CID {
 		} // loop over all regions
 
 		if (!local_merge) {		// global merge
+			System.out.println("Merging proximal PET clusters, n="+clustersCalled.size()+", " + CommonUtils.timeElapsed(tic0));
 			if (merge2)
 				mergeReadPairClusters2(clustersCalled);
 			else
 				mergeReadPairClusters(clustersCalled);
+			System.out.println("Merging done, " + CommonUtils.timeElapsed(tic0));
 		}
 		
 		// refresh the PETs again because some PET1 might not be
