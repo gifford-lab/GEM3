@@ -1,5 +1,0 @@
-dbiconnectstring=dbi:Oracle:host=olig2.csail.mit.edu;sid=cgs
-jdbcconnectstring=jdbc:oracle:thin:@olig2.csail.mit.edu:1521:cgs
-user=finkpublic
-passwd=rofodeekeols
-schema=finkalignment
