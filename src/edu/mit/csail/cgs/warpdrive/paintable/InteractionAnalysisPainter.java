@@ -75,7 +75,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 		if (getProperties().DrawTrackLabel) {
 			g.setFont(attrib.getLargeLabelFont(width,height));
 			g.setColor(Color.BLACK);
-			g.drawString("Analysis " +getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
+			g.drawString(getLabel(),x1 + g.getFont().getSize()*2,y1 + g.getFont().getSize());
 		}
 
 		g.setStroke(new BasicStroke(1.0f));
@@ -127,6 +127,16 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 				g.setStroke(new BasicStroke(1/15f));
 			}
 			else{
+//				// special plotting for paper suppl. figure 
+//				if (count==77)
+//					continue;
+//				if (count>=7 || count==3)
+//					colorIdx=3;
+//				else
+//					colorIdx=1;
+//				if (leftCoord==48807536 || leftCoord==48809344 || leftCoord==48807506)
+//					colorIdx=1;
+//				g.setColor(arcColors[colorIdx]);
 				colorIdx = Math.round(count/10);
 				if (colorIdx > arcColors.length-1)
 					colorIdx = arcColors.length-1;
@@ -144,7 +154,7 @@ public class InteractionAnalysisPainter extends RegionPaintable {
 						g.fillRect(leftS, y2, leftE-leftS, 3);
 						g.fillRect(rightS, y2, rightE-rightS, 3);
 					}
-				}
+				} // if for special plotting, comment out up to here
 			}
 			QuadCurve2D loop = new QuadCurve2D.Float(leftx, y2, midx, midy, rightx, y2);
 			g.draw(loop);
