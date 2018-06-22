@@ -88,7 +88,7 @@ public class CID {
 			analysis.countGenesPerRegion();
 			analysis.StatsTAD();
 			break;
-		case 1: // region (1D merged-read) based clustering
+		case 1: // region (1D merged-read) based density clustering
 			analysis.findAllInteractions();
 			break;
 		case 2: 
@@ -491,10 +491,11 @@ public class CID {
 	private void findAllInteractions() {
 		long tic0 = System.currentTimeMillis();
 		String outName = Args.parseString(args, "out", "CID");
-		System.out.println("Chromatin Interaction Discovery (CID), version 0.180521\n");
-		System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
-				Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
-				dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
+		System.out.println("CID - Chromatin Interaction Discovery, version 1.0\n");
+		if (isDev)
+			System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
+					Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
+					dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
 		
 		// default mode: local merge2, good for broad factors such as Pol2, HistoneMark
 		boolean local_merge = true;
@@ -536,6 +537,7 @@ public class CID {
 		int numTotalLoaded = 0;
 		int numBothEnds=0;
 		int numIntraChrom = 0;
+		int numInterChrom = 0;
 		int numExcluded = 0;
 		try {	
 			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(Args.parseString(args, "data", null)))));
@@ -601,8 +603,10 @@ public class CID {
 
 	    			// TODO: change next line if predicting inter-chrom interactions
 	    			// r1 and r2 should be on the same chromosome for PETs
-	    			if (!r1.getChrom().equals(r2.getChrom())) 
+	    			if (!r1.getChrom().equals(r2.getChrom())) {
+	    				numInterChrom++;
 	    				continue;
+	    			}
 	    			numIntraChrom++;
 	    			
 	    			// DO NOT  treat inter-chrom reads as single-end reads
@@ -692,8 +696,8 @@ public class CID {
 			highEnds.add(r.r2);
 		highEnds.trimToSize();
 
-		System.out.println(String.format("Read pair data loaded: %s\n\nTotal PETs loaded n=%d\nPETs excluded n=%d\nPETs with both ends n=%d\nIntra-chrom PETs n=%d\nFiltered (span>%dbp) PETs n=%d\nTotal single reads n=%d", 
-				CommonUtils.timeElapsed(tic0), numTotalLoaded, numExcluded, numBothEnds, numIntraChrom, min_span, highEnds.size(), reads.size()));
+		System.out.println(String.format("Read pair data loaded: %s\n\nTotal PETs loaded n=%d\nPETs excluded n=%d\nPETs with both ends n=%d\nInter-chrom PETs n=%d\nIntra-chrom PETs n=%d\nFiltered (span>%dbp) PETs n=%d\nTotal single reads n=%d", 
+				CommonUtils.timeElapsed(tic0), numTotalLoaded, numExcluded, numBothEnds, numInterChrom, numIntraChrom, min_span, highEnds.size(), reads.size()));
 		if (flags.contains("stats_only")) {
 			System.out.println("\nstats_only is on, exit here.");
 			System.exit(0);
