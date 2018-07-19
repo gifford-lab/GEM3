@@ -162,6 +162,10 @@ public class MotifScan {
 						if (l.startsWith("#"))
 							continue;
 						String[] f = l.split("\t");
+						if (f.length<2) {
+							System.err.println("Incomplete info in KSM list at line: " + l);
+							continue;
+						}
 						String kname = f[0].trim();
 						KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
 						if (kmac==null){
@@ -177,6 +181,10 @@ public class MotifScan {
 						if (l.startsWith("#"))
 							continue;
 						String[] f = l.split("\t");
+						if (f.length<2) {
+							System.err.println("Incomplete info in KSM list at line: " + l);
+							continue;
+						}
 						KMAC kmac = CommonUtils.loadKsmFile(f[1].trim(), config);
 						if (kmac==null){
 							System.err.println("Error in loading "+f[1]+", skipping it ...\n");
