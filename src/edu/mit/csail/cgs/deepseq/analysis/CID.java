@@ -511,7 +511,11 @@ public class CID {
 			System.out.println(String.format("Options: --g \"%s\" --data \"%s\" --out \"%s\" --dc %d --read_merge_dist %d --distance_factor %d --max_cluster_merge_dist %d --min_span %d\n", 
 					Args.parseString(args, "g", null), Args.parseString(args, "data", null), Args.parseString(args, "out", "Result"),
 					dc, read_1d_merge_dist, distance_factor, max_cluster_merge_dist, min_span));
-		
+		if (genome==null) {
+			System.err.println("Need --g, genome chrom.sizes!");
+			System.exit(-1);
+		}
+
 		// default mode: local merge2, good for broad factors such as Pol2, HistoneMark
 		boolean local_merge = true;
 		boolean merge2 = true;
@@ -525,6 +529,11 @@ public class CID {
 
 		// sort by each end so that we can search to find matches or overlaps
 		System.out.println("Running CID on "+outName);
+
+		/**************************
+		 * Load PETs
+		 **************************/
+		
 		System.out.println("\nLoading ChIA-PET read pairs ... ");
 		
 		String exChroms = Args.parseString(args, "ex", "M");
@@ -554,8 +563,9 @@ public class CID {
 		int numIntraChrom = 0;
 		int numInterChrom = 0;
 		int numExcluded = 0;
+		fileName = Args.parseString(args, "data", "No --data paired-end read file");
 		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(Args.parseString(args, "data", null)))));
+			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));
 	        String line;
 	        bin.mark(1000);
 	        int numFields  = bin.readLine().split("\t").length;
@@ -724,9 +734,9 @@ public class CID {
 			String outprefix = loop_file.replace(".bedpe", "");
 			int binSize = Args.parseInteger(args, "bin", 100);
 //			System.out.println(loop_file);
-			ArrayList<String> lines = CommonUtils.readTextFile(loop_file);
+			ArrayList<String> lines1 = CommonUtils.readTextFile(loop_file);
 			int count = 0;
-			for (String anchorString : lines) {
+			for (String anchorString : lines1) {
 				// System.out.println(anchorString);
 				String[] f = anchorString.split("\t");
 				Region region1 = new Region(genome, f[0].replace("chr", ""), Integer.parseInt(f[1]),
@@ -974,6 +984,20 @@ public class CID {
 		
 		reads = null;		// don't need the single reads from now on, clean up
 		System.gc();
+
+		
+		if (flags.contains("print_cluster")){
+			StringBuilder sbDensityDetails = new StringBuilder();
+			ReadPairCluster rpc = new ReadPairCluster();
+			rpc.pets.addAll(high);
+			rpc.update(false);
+			sbDensityDetails.append(String.format("# %s:%d-%d\n", rpc.leftRegion.getChrom(), rpc.r1min, rpc.r2max));
+			densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sbDensityDetails);
+			CommonUtils.writeFile(String.format("%s.cluster.density.txt", outName), sbDensityDetails.toString());
+			System.out.println(String.format("\nClustering results have been written to %s.cluster.density.txt", outName));
+			System.exit(0);
+		}		
+
 		
 		/***********************************************************************
 		 * One dimension  segmentation using left read (similar to GEM code)
@@ -1019,7 +1043,6 @@ public class CID {
 		
 		System.out.println("\nSegmented PETs into " + rs0.size() + " regions, " + CommonUtils.timeElapsed(tic0));
 
-		
 		/**************************
 		 * Load other data for annotations
 		 **************************/
@@ -1048,20 +1071,6 @@ public class CID {
 			Collections.sort(allTSS);
 		}
 
-		
-		if (flags.contains("print_cluster")){
-			StringBuilder sbDensityDetails = new StringBuilder();
-			ReadPairCluster rpc = new ReadPairCluster();
-			rpc.pets.addAll(high);
-			rpc.update(false);
-			sbDensityDetails.append(String.format("# %s:%d-%d\n", rpc.leftRegion.getChrom(), rpc.r1min, rpc.r2max));
-			densityClustering(rpc, span2mergingDist(rpc.getLoopRegionWidth()), sbDensityDetails);
-			CommonUtils.writeFile(String.format("%s.cluster.density.txt", outName), sbDensityDetails.toString());
-			System.out.println(String.format("\nClustering results have been written to %s.cluster.density.txt", outName));
-			System.exit(0);
-		}		
-
-		
 		/***********************************************************
 		 * find dense PET cluster for each 1D clustered region
 		 ***********************************************************/
