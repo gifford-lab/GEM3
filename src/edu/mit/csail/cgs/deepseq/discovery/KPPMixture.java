@@ -3245,6 +3245,8 @@ public class KPPMixture extends MultiConditionFeatureFinder {
 		int margin= 30;
 		int xmargin = 20;
 		
+		if (!allModels.containsKey(outName))
+			return;
 	    int xMin = allModels.get(outName).getMin();
 	    int xMax = allModels.get(outName).getMax();
 	    int xRange = xMax-xMin;

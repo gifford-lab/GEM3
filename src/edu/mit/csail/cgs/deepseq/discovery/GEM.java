@@ -17,7 +17,7 @@ import edu.mit.csail.cgs.utils.NotFoundException;
 import edu.mit.csail.cgs.utils.Pair;
 
 public class GEM {
-	public final static String GEM_VERSION = "3.3";
+	public final static String GEM_VERSION = "3.4";
 	private String[] args;
 	private Genome genome;
     private KPPMixture mixture;
@@ -225,13 +225,10 @@ public class GEM {
         	// initialize first set of kmers from GPS result
 	        int returnValue = mixture.runKMAC();	
 	        if (returnValue < 0){					// this could happen if no k value can be found to give good motif
-	        		mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
-	            mixture.closeLogFile();
-	            
 	            if (returnValue == -1)
-	            	System.out.println("\nMotif can not be found!\n\nGPS analysis results are printed to:");
+	            		System.out.println("\nMotif can not be found!\n\nGPS analysis results are printed to:");
 	            else if (returnValue == -2)
-	            	System.out.println("\nBinding event can not be found!\n\nGPS analysis results are printed to:");
+	            		System.out.println("\nBinding event can not be found!\n\nGPS analysis results are printed to:");
 	            
 	            System.out.println(path+".GPS_events.txt\n"+
 		        		path+"_result.htm\n" +
@@ -242,6 +239,9 @@ public class GEM {
 		        	htmName+"'></HEAD><BODY>If your browser did not redirect, <a href='"+
 		        	htmName+"'>click here for GPS Result</a>.</BODY></HTML>";
 		        CommonUtils.writeFile(path+".results.htm", html);
+		        
+		        mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
+	            mixture.closeLogFile();
 	            return;
 	        }
 	        	
@@ -266,9 +266,6 @@ public class GEM {
             }
         }
         
-        mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
-        mixture.closeLogFile();        
-
         if (run_gem){
 	        System.out.println("\nFinished! GEM analysis results are printed to:\n"+
 	        		path+".GEM_events.txt\n"+
@@ -295,6 +292,9 @@ public class GEM {
 	        if (Args.parseFlags(args).contains("outBED"))
 	        	CommonUtils.copyFile(filePrefix+"_"+round+".GEM_events.bed", path+".GPS_events.bed");
         }
+        
+        mixture.plotAllReadDistributions(mixture.allModels, mixture.outName);
+        mixture.closeLogFile();        
     }
     	
     public static void main(String[] args) throws Exception {
