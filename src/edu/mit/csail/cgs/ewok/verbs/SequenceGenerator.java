@@ -49,7 +49,7 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
     
     /** cache the whole chromosome of this region */
     private void cache(X region) throws SQLException, IOException {
-    	String chr = region.getChrom();
+    		String chr = region.getChrom();
         int chromid = region.getGenome().getChromID(chr);
         synchronized(cache) {
             if (cache.containsKey(chromid)) {
@@ -58,15 +58,21 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
         }
         String chromseq = null;
         if (useLocalFiles) {
-        	if (genomePath==null)
-        		genomePath = "/cluster/genomes/" + region.getGenome().getVersion();
-        	if (!new File( genomePath).exists()){
-        		System.err.println(genomePath+" is not a valid path. Use default path.\n");
-        		genomePath = "/cluster/genomes/" + region.getGenome().getVersion() + "_chrfa_only";
-        	}
+	        	if (genomePath==null)
+	        		genomePath = "/cluster/genomes/" + region.getGenome().getVersion();
+	        	if (!new File( genomePath).exists()){
+	        		System.err.println(genomePath+" is not a valid path. Use default path.\n");
+	        		genomePath = "/cluster/genomes/" + region.getGenome().getVersion() + "_chrfa_only";
+	        	}
             File f = new File( genomePath + "/chr" + chr + ".fa");
             if (!f.exists()) {
                 f = new File( genomePath+ "/chr" + chr + ".fasta");
+            }
+            if (!f.exists()) {
+                f = new File( genomePath + "/" + chr + ".fasta");
+            }
+            if (!f.exists()) {
+                f = new File( genomePath + "/" + chr + ".fa");
             }
             if (f.exists()) {
                 FASTAStream stream = new FASTAStream(f);
@@ -85,8 +91,8 @@ public class SequenceGenerator<X extends Region> implements Mapper<X,String>, Se
                 }
             }
             else{
-            	System.err.println("\nchr"+chr+".fa genome sequence file is not found at directory "+genomePath+".\n");
-            	System.exit(-1);
+	            	System.err.println("\nchr"+chr+".fa genome sequence file is not found at directory "+genomePath+".\n");
+	            	System.exit(-1);
             }
         }
         if (chromseq == null) {
