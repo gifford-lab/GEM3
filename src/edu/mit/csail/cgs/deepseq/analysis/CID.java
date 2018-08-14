@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.zip.GZIPInputStream;
 
 import edu.mit.csail.cgs.datasets.general.Point;
 import edu.mit.csail.cgs.datasets.general.Region;
@@ -489,7 +490,7 @@ public class CID {
 	
 	private void printHelp() {
 		System.out.println("Usage: java -Xmx32G -jar gem.jar CID --data INPUT-BEDPE-FILE --g CHROMOSOME-SIZE-FILE [--micc NUM] [--ex CHR] [--out FILE-NAME-PREFIX]");
-		System.out.println("Options:\n\t--data INPUT-BEDPE-FILE\n\t\tthe file path to the aligned paired-end BEDPE file, required");
+		System.out.println("Options:\n\t--data INPUT-BEDPE-FILE\n\t\tthe file path to the aligned paired-end bedpe or bedpe.gz file, required");
 		System.out.println("\t--g CHROMOSOME-SIZE-FILE\n\t\tthe file path to the chromosome size file, required");
 		System.out.println("\t[--micc NUM]\n\t\tthe minimum PET count of candidate interactions for the MICC input BEDPE file. Default NUM = 1. For large datasets, try NUM = 2, 3, or 4.");
 		System.out.println("\t[--ex CHR]\n\t\tthe list of chromosomes to exclude. Default CHR = M. Multiple chromosomes can be separated by commas, e.g., CHR = M,Y");
@@ -565,7 +566,16 @@ public class CID {
 		int numExcluded = 0;
 		fileName = Args.parseString(args, "data", "No --data paired-end read file");
 		try {	
-			BufferedReader bin = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileName))));
+			BufferedReader bin = null;
+			FileInputStream fis = new FileInputStream(fileName);
+			try {
+				bin = new BufferedReader(new InputStreamReader(new GZIPInputStream(fis)));
+			}
+			catch(IOException e) {
+				fis.close();
+				bin = new BufferedReader(new InputStreamReader(new FileInputStream(fileName)));
+			}
+
 	        String line;
 	        bin.mark(1000);
 	        int numFields  = bin.readLine().split("\t").length;

@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 import java.util.regex.Matcher;
 import java.io.*;
 
@@ -367,9 +368,17 @@ public class RegionPanel extends JPanel
 								}
 
 							});
-					System.err.println(String.format("parsing %s with name %s.", k, name));
+					System.err.println(String.format("parsing %s with label %s.", k, name));
 					long tic = System.currentTimeMillis();
-					BufferedReader r = new BufferedReader(new FileReader(k));
+					BufferedReader r = null;
+					FileInputStream fis = new FileInputStream(k);
+					try {
+						r = new BufferedReader(new InputStreamReader(new GZIPInputStream(fis)));
+					}
+					catch(IOException e) {
+						fis.close();
+						r = new BufferedReader(new InputStreamReader(new FileInputStream(k)));
+					}
 					String s;
 					String[] split;
 					// r.readLine();
